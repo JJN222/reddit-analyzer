@@ -98,55 +98,112 @@ HEADERS = {
 }
 
 def get_reddit_posts(subreddit, category="hot", limit=5):
-    """Get posts from specified subreddit and category"""
+    """Get posts from specified subreddit and category with enhanced cloud compatibility"""
     urls_to_try = [
         f"https://www.reddit.com/r/{subreddit}/{category}.json",
-        f"https://old.reddit.com/r/{subreddit}/{category}.json",
-        f"https://np.reddit.com/r/{subreddit}/{category}.json"
+        f"https://old.reddit.com/r/{subreddit}/{category}.json", 
+        f"https://np.reddit.com/r/{subreddit}/{category}.json",
+        f"https://gateway.reddit.com/desktopapi/v1/subreddits/{subreddit}",
+        f"https://api.reddit.com/r/{subreddit}/{category}",
+    ]
+    
+    # Enhanced headers for cloud deployment
+    headers_variants = [
+        {
+            'User-Agent': 'web:shorthand-reddit-analyzer:v1.0.0 (by /u/Ruhtorikal)',
+            'Accept': 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        },
+        {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.reddit.com/',
+        },
+        {
+            'User-Agent': 'RedditAnalyzer/1.0 (by /u/Ruhtorikal)',
+            'Accept': 'application/json',
+        }
     ]
     
     for url in urls_to_try:
-        try:
-            time.sleep(3)  # Be respectful to Reddit
-            params = {'limit': limit, 'raw_json': 1}
-            response = requests.get(url, headers=HEADERS, params=params, timeout=20)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if 'data' in data and 'children' in data['data']:
-                    return data['data']['children']
-            elif response.status_code == 403:
-                continue  # Try next URL
-            elif response.status_code == 429:
-                time.sleep(10)  # Rate limited, wait longer
+        for headers in headers_variants:
+            try:
+                time.sleep(4)  # Longer delay for cloud
+                params = {'limit': limit, 'raw_json': 1, 't': 'day'}
+                
+                # Try with session for better connection handling
+                import requests
+                session = requests.Session()
+                session.headers.update(headers)
+                
+                response = session.get(url, params=params, timeout=25, allow_redirects=True)
+                
+                if response.status_code == 200:
+                    try:
+                        data = response.json()
+                        if 'data' in data and 'children' in data['data'] and data['data']['children']:
+                            return data['data']['children']
+                    except:
+                        # Try parsing as different format
+                        continue
+                        
+                elif response.status_code == 403:
+                    continue  # Try next combination
+                elif response.status_code == 429:
+                    time.sleep(15)  # Rate limited, wait longer
+                    continue
+                elif response.status_code == 503:
+                    time.sleep(10)  # Service unavailable
+                    continue
+                    
+            except Exception as e:
                 continue
-        except Exception as e:
-            continue
     
     return []
 
 def get_top_comments(subreddit, post_id, limit=3):
-    """Get top comments for a specific post"""
-    url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json"
+    """Get top comments for a specific post with enhanced cloud compatibility"""
+    urls_to_try = [
+        f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json",
+        f"https://old.reddit.com/r/{subreddit}/comments/{post_id}.json",
+        f"https://np.reddit.com/r/{subreddit}/comments/{post_id}.json"
+    ]
     
-    try:
-        time.sleep(2)
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if len(data) > 1 and 'data' in data[1] and 'children' in data[1]['data']:
-                comments = []
-                for comment in data[1]['data']['children'][:limit]:
-                    if comment['kind'] == 't1' and 'body' in comment['data']:
-                        comments.append({
-                            'body': comment['data']['body'],
-                            'score': comment['data']['score'],
-                            'author': comment['data'].get('author', '[deleted]')
-                        })
-                return comments
-    except:
-        pass
+    headers_variants = [
+        {
+            'User-Agent': 'web:shorthand-reddit-analyzer:v1.0.0 (by /u/Ruhtorikal)',
+            'Accept': 'application/json',
+        },
+        {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json',
+        }
+    ]
+    
+    for url in urls_to_try:
+        for headers in headers_variants:
+            try:
+                time.sleep(3)
+                response = requests.get(url, headers=headers, timeout=20)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if len(data) > 1 and 'data' in data[1] and 'children' in data[1]['data']:
+                        comments = []
+                        for comment in data[1]['data']['children'][:limit]:
+                            if comment['kind'] == 't1' and 'body' in comment['data']:
+                                comments.append({
+                                    'body': comment['data']['body'],
+                                    'score': comment['data']['score'],
+                                    'author': comment['data'].get('author', '[deleted]')
+                                })
+                        return comments
+            except:
+                continue
     return []
 
 def analyze_with_ai(post_title, post_content, comments, api_key, image_url=None):
@@ -322,6 +379,10 @@ def display_posts(posts, subreddit, api_key=None):
             st.write(f"[View on Reddit](https://reddit.com{permalink})")
             st.markdown("---")
 
+# Add deployment detection
+import os
+IS_CLOUD = os.getenv('RENDER') or os.getenv('HEROKU') or os.getenv('VERCEL')
+
 # Sidebar
 st.sidebar.header("🔑 AI Configuration")
 api_key = st.sidebar.text_input("OpenAI API Key", type="password", placeholder="sk-...")
@@ -334,6 +395,14 @@ else:
     analysis_mode = "📊 Basic Analysis (No AI)"
 
 st.sidebar.write(f"**Current Mode:** {analysis_mode}")
+
+# Show deployment status
+if IS_CLOUD:
+    st.sidebar.info("🌐 Running on cloud deployment")
+    st.sidebar.write("Reddit may block some requests from cloud IPs. If posts don't load, try different subreddits.")
+else:
+    st.sidebar.info("💻 Running locally")
+
 st.sidebar.markdown("---")
 
 # Settings
