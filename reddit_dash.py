@@ -5,6 +5,7 @@ from datetime import datetime
 import time
 import openai
 import os
+import xml.etree.ElementTree as ET
 
 # Configure Streamlit page
 st.set_page_config(
@@ -213,7 +214,20 @@ def search_subreddits(query, limit=10):
     return []
 
 def get_reddit_posts(subreddit, category="hot", limit=5):
-    """Get posts from specified subreddit and category"""
+    """Enhanced Reddit API with RSS fallback"""
+    
+    # Try JSON API first
+    posts = get_reddit_posts_json(subreddit, category, limit)
+    if posts:
+        return posts
+    
+    # If JSON fails, try RSS fallback
+    st.info(f"📡 JSON API blocked, trying RSS feed for r/{subreddit}...")
+    return get_reddit_posts_rss(subreddit, limit)
+
+def get_reddit_posts_json(subreddit, category="hot", limit=5):
+    """Try multiple JSON API approaches"""
+    
     urls_to_try = [
         f"https://www.reddit.com/r/{subreddit}/{category}.json",
         f"https://old.reddit.com/r/{subreddit}/{category}.json", 
@@ -228,13 +242,17 @@ def get_reddit_posts(subreddit, category="hot", limit=5):
         {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json',
+        },
+        {
+            'User-Agent': 'python:reddit-analyzer:v1.0 (by /u/Ruhtorikal)',
+            'Accept': 'application/json'
         }
     ]
     
     for url in urls_to_try:
         for headers in headers_variants:
             try:
-                time.sleep(2)
+                time.sleep(3)  # Longer delay for cloud
                 params = {'limit': limit, 'raw_json': 1}
                 response = requests.get(url, headers=headers, params=params, timeout=15)
                 
@@ -247,7 +265,87 @@ def get_reddit_posts(subreddit, category="hot", limit=5):
                     continue
             except:
                 continue
-    return []
+    return None
+
+def get_reddit_posts_rss(subreddit, limit=5):
+    """RSS fallback for when JSON API is blocked"""
+    try:
+        # Try multiple RSS endpoints
+        rss_urls = [
+            f"https://www.reddit.com/r/{subreddit}/hot.rss",
+            f"https://www.reddit.com/r/{subreddit}/.rss",
+            f"https://old.reddit.com/r/{subreddit}/hot.rss"
+        ]
+        
+        for rss_url in rss_urls:
+            try:
+                headers = {'User-Agent': 'Mozilla/5.0 (compatible; RedditRSS/1.0)'}
+                response = requests.get(rss_url, headers=headers, timeout=15)
+                
+                if response.status_code == 200:
+                    # Parse RSS XML
+                    root = ET.fromstring(response.content)
+                    posts = []
+                    
+                    # Find all entry items (RSS format)
+                    entries = root.findall('.//{http://www.w3.org/2005/Atom}entry')
+                    if not entries:
+                        # Try alternative RSS format
+                        entries = root.findall('.//item')
+                    
+                    for entry in entries[:limit]:
+                        try:
+                            # Extract data from RSS entry
+                            if entry.find('{http://www.w3.org/2005/Atom}title') is not None:
+                                # Atom format
+                                title = entry.find('{http://www.w3.org/2005/Atom}title').text
+                                link = entry.find('{http://www.w3.org/2005/Atom}link').get('href', '')
+                                content = entry.find('{http://www.w3.org/2005/Atom}content')
+                                content_text = content.text if content is not None else ""
+                            else:
+                                # Standard RSS format
+                                title = entry.find('title').text if entry.find('title') is not None else "No title"
+                                link = entry.find('link').text if entry.find('link') is not None else ""
+                                content_text = entry.find('description').text if entry.find('description') is not None else ""
+                            
+                            # Extract post ID from link
+                            post_id = "rss_" + str(hash(link))[-8:]
+                            
+                            # Create a JSON-like structure similar to Reddit API
+                            post_data = {
+                                'data': {
+                                    'id': post_id,
+                                    'title': title,
+                                    'url': link,
+                                    'permalink': link.replace('https://www.reddit.com', ''),
+                                    'score': 0,  # RSS doesn't provide scores
+                                    'num_comments': 0,  # RSS doesn't provide comment counts
+                                    'selftext': content_text[:500] + "..." if len(content_text) > 500 else content_text,
+                                    'is_video': False,
+                                    'is_self': 'self.' in link,
+                                    'preview': None,
+                                    'created_utc': time.time(),  # Use current time as fallback
+                                    'author': 'RSS_Feed'
+                                }
+                            }
+                            posts.append(post_data)
+                            
+                        except Exception as e:
+                            continue
+                    
+                    if posts:
+                        st.success(f"✅ Successfully loaded {len(posts)} posts from RSS feed")
+                        return posts
+                        
+            except Exception as e:
+                continue
+        
+        st.error(f"❌ Could not access r/{subreddit} via RSS either")
+        return []
+        
+    except Exception as e:
+        st.error(f"❌ RSS parsing failed: {str(e)}")
+        return []
 
 def get_top_comments(subreddit, post_id, limit=3):
     """Get top comments for a specific post"""
