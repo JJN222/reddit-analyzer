@@ -498,14 +498,13 @@ def display_posts(posts, subreddit, api_key=None):
         if url and any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
             image_url = url
             is_image = True
-        elif 'preview' in post_data and 'images' in post_data['preview']:
+        elif 'preview' in post_data and post_data['preview'] is not None and 'images' in post_data['preview']:
             try:
                 image_url = post_data['preview']['images'][0]['source']['url'].replace('&amp;', '&')
                 is_image = True
             except:
-                pass
-        
-        post_data['image_url'] = image_url
+                pass        
+                post_data['image_url'] = image_url
         
         with st.expander(f"#{i+1}: {title[:80]}{'...' if len(title) > 80 else ''}", expanded=False):
             # Basic post info
