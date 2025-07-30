@@ -313,29 +313,24 @@ Important: Base your analysis on {creator_name}'s actual known personality, poli
         return f"AI Analysis Error: {str(e)}"
     
 def analyze_with_ai(post_title, post_content, comments, api_key, creator_name="Daily Wire", image_url=None):
-    """Analyze post and comments with OpenAI"""
+    """Analyze post and comments with OpenAI - using legacy method for Railway compatibility"""
     if not api_key:
         return None
     
-    try:
-        from openai import OpenAI
-        # Initialize client with explicit parameters to avoid proxy conflicts
-        client = OpenAI(
-            api_key=api_key,
-            timeout=20.0
-        )
-        
-        # Prepare content for analysis
-        content = f"Post Title: {post_title}\n"
-        if post_content and post_content != post_title:
-            content += f"Post Content: {post_content[:500]}...\n"
-        
-        content += "Top Comments:\n"
-        for i, comment in enumerate(comments[:3], 1):
-            content += f"{i}. {comment['body'][:200]}...\n"
-        
-        # Dynamic creator analysis prompt
-        creator_prompt = f"""Analyze this Reddit post for {creator_name}'s content strategy. First, consider what you know about {creator_name}'s personality, political positions, communication style, and typical takes. Then analyze the content accordingly:
+    # Use legacy method since Railway has proxy conflicts with new OpenAI client
+    import openai
+    openai.api_key = api_key
+    
+    # Prepare content for analysis
+    content = f"Post Title: {post_title}\n"
+    if post_content and post_content != post_title:
+        content += f"Post Content: {post_content[:500]}...\n"
+    
+    content += "Top Comments:\n"
+    for i, comment in enumerate(comments[:3], 1):
+        content += f"{i}. {comment['body'][:200]}...\n"
+    
+    creator_prompt = f"""Analyze this Reddit post for {creator_name}'s content strategy. First, consider what you know about {creator_name}'s personality, political positions, communication style, and typical takes. Then analyze the content accordingly:
 
 {content}
 
@@ -349,19 +344,15 @@ Provide analysis in this format:
 ⚠️ CONTROVERSY LEVEL: How polarizing this content would be for {creator_name} (1-10 scale)
 
 Important: Base your analysis on {creator_name}'s actual known personality, political positions, and communication style."""
-        
-        try:
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": creator_prompt}],
-                max_tokens=600,
-                timeout=20
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            # Fallback to legacy method
-            return analyze_with_legacy_openai(post_title, post_content, comments, creator_name, image_url)
-        
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": creator_prompt}],
+            max_tokens=600,
+            timeout=20
+        )
+        return response.choices[0].message.content
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
 
