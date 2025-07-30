@@ -1074,7 +1074,7 @@ Provide {creator_name}'s reaction strategy:
                                     
                                     if comments:
                                         # Store comments in session state
-                                        st.session_state[f"comments_{i}"] = comments
+                                        st.session_state[f"comments_data_{i}"] = comments
                                         
                                         # AI analysis of comments
                                         comment_analysis = analyze_video_comments_with_ai(comments, video['title'], creator_name, api_key)
