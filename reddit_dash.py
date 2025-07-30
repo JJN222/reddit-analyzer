@@ -1,11 +1,10 @@
 import streamlit as st
 import requests
+import pandas as pd
 from datetime import datetime
 import time
 import openai
 import os
-import xml.etree.ElementTree as ET  # Add this
-import re  # Add this
 
 # Configure Streamlit page
 st.set_page_config(
@@ -401,7 +400,7 @@ def display_posts(posts, subreddit, api_key=None):
         if url and any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']):
             image_url = url
             is_image = True
-        elif 'preview' in post_data and post_data['preview'] is not None and 'images' in post_data['preview']:
+        elif 'preview' in post_data and 'images' in post_data['preview']:
             try:
                 image_url = post_data['preview']['images'][0]['source']['url'].replace('&amp;', '&')
                 is_image = True
