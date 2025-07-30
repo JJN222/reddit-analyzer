@@ -331,7 +331,7 @@ Important: Base your analysis on {creator_name}'s actual known personality, poli
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
 
-def display_posts(posts, subreddit, api_key=None):
+def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
     """Display posts with analysis"""
     if not posts:
         st.warning("⚠️ No posts found. Try a different subreddit.")
@@ -1185,9 +1185,9 @@ elif platform == "🌊 Reddit Analysis":
                             
                             for subreddit, posts in grouped_results.items():
                                 st.subheader(f"📊 r/{subreddit} ({len(posts)} posts)")
-                                display_posts(posts, subreddit, api_key)
+                                display_posts(posts, subreddit, api_key, creator_name)
                         else:
-                            display_posts(search_results, search_subreddits[0], api_key)
+                            display_posts(search_results, search_subreddits[0], api_key, creator_name)
                     else:
                         st.error(f"❌ No posts found for '{search_query}'. Try different keywords or subreddits.")
     
