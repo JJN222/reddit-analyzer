@@ -405,15 +405,34 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                 if analysis and not analysis.startswith("AI Analysis Error"):
                     st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
                     
-                    col1, col2 = st.columns([4, 1])
-                    with col1:
-                        st.markdown(f"### 🤖 AI Analysis for {creator_name}")
                     with col2:
-                        if st.button("💾 Save", key=f"save_{post_id}_{i}", help="Save this post for show planning"):
-                            if save_post(post_data, analysis, creator_name, subreddit):
-                                st.success("✅ Saved!")
-                            else:
-                                st.info("Already saved")
+                        # Export analysis as text file
+                        export_data = f"""# {creator_name} Analysis for Reddit Post
+
+                    **Post:** {title}
+                    **Subreddit:** r/{subreddit}
+                    **Score:** {score:,} upvotes
+                    **Comments:** {num_comments:,}
+                    **Author:** u/{author}
+                    **Reddit Link:** https://reddit.com{permalink}
+
+                    ## AI Analysis:
+                    {analysis}
+
+                    ## Post Content:
+                    {selftext[:500] if selftext else 'No text content'}
+
+                    Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                    """
+                        
+                        st.download_button(
+                            label="📄 Export",
+                            data=export_data,
+                            file_name=f"{creator_name.replace(' ', '_')}_{title[:30].replace(' ', '_')}_analysis.txt",
+                            mime="text/plain",
+                            key=f"export_{post_id}_{i}",
+                            help="Download this analysis as a text file"
+                        )
                     
                     if is_image:
                         st.info("🖼️ Image analysis included")
