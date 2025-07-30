@@ -912,7 +912,6 @@ with st.sidebar.expander("🔑 API Status", expanded=False):
 if platform == "📺 YouTube Intelligence":
     st.header("📺 YouTube Intelligence Center")
     
-    st.info("💡 **YouTube Intelligence:** Analyze trending videos and search for content opportunities. YouTube API key is optional - works with sample data too!")
     
     tab1, tab2 = st.tabs(["🔥 Trending Videos", "🔍 Video Search"])
     
