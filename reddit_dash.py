@@ -443,7 +443,7 @@ def display_posts(posts, subreddit, api_key=None):
             
             st.write(f"[View on Reddit](https://reddit.com{permalink})")
 
-# ============ GOOGLE TRENDS FUNCTIONS ============
+# ============ CONTENT INTELLIGENCE FUNCTIONS ============
 
 def get_trending_topics_alternative():
     """Get trending topics using alternative methods"""
@@ -538,7 +538,7 @@ st.sidebar.header("🎯 Content Intelligence Hub")
 
 platform = st.sidebar.selectbox(
     "📊 Choose Platform",
-    ["🌊 Reddit Analysis", "📈 Google Trends", "🎬 Show Planner", "💾 Saved Content"],
+    ["🌊 Reddit Analysis", "📈 Content Intelligence", "🎬 Show Planner", "💾 Saved Content"],
     key="platform_select"
 )
 
@@ -572,34 +572,57 @@ if st.session_state.show_concepts:
 
 # ============ MAIN CONTENT ============
 
-if platform == "📈 Google Trends":
-    st.header("📈 Google Trends Intelligence")
+if platform == "📈 Content Intelligence":
+    st.header("📈 Content Intelligence Center")
     
-    if not PYTRENDS_AVAILABLE:
-        st.error("❌ Google Trends requires the pytrends library. Add to requirements.txt:")
-        st.code("pytrends==4.9.2")
+    st.info("💡 **Note:** Google Trends API is often blocked on cloud platforms. This section provides alternative trending insights and AI-powered content generation.")
     
-    tab1, tab2 = st.tabs(["🔥 Trending Now", "🎯 Content Ideas"])
+    tab1, tab2, tab3 = st.tabs(["🔥 Topic Analysis", "🎯 Content Ideas", "📊 Keyword Research"])
     
     with tab1:
-        st.subheader("🔥 What's Trending Right Now")
+        st.subheader("🔥 Trending Topic Analysis")
         
         col1, col2 = st.columns([2, 1])
         with col1:
-            if st.button("🔄 Get Trending Topics", key="get_trends"):
-                with st.spinner("Fetching trending topics..."):
+            if st.button("🔄 Get Current Topics", key="get_trends"):
+                with st.spinner("Generating current trending topics..."):
                     trending_topics = get_trending_topics_safe()
                     st.session_state.trending_topics = trending_topics
         
         with col2:
-            region = st.selectbox("Region", ["US", "CA", "GB", "AU"], key="region_select")
+            source_type = st.selectbox("Topic Source", ["Current Events", "Twitter Style", "YouTube Style", "Political Focus"], key="topic_source")
+        
+        # Generate topics based on source type
+        if st.button("🎯 Generate Topics", key="generate_topics_btn"):
+            if source_type == "Political Focus":
+                topics = [
+                    "Border Security", "Economic Policy", "Election Integrity", "Free Speech",
+                    "Second Amendment", "Healthcare Reform", "Education Policy", "Energy Independence",
+                    "Foreign Policy", "Judicial Appointments", "Tax Reform", "Government Spending",
+                    "Constitutional Rights", "State Rights", "Immigration Reform"
+                ]
+            elif source_type == "Twitter Style":
+                topics = [
+                    "Viral Debate", "Celebrity Controversy", "Breaking Politics", "Tech Scandal",
+                    "Sports Drama", "Entertainment News", "Social Media Trend", "Political Gaffe",
+                    "Cultural Moment", "Trending Hashtag", "Public Feud", "Viral Challenge"
+                ]
+            elif source_type == "YouTube Style":
+                topics = [
+                    "Reaction Content", "Political Commentary", "News Analysis", "Debate Response",
+                    "Policy Breakdown", "Current Events", "Interview Highlights", "Fact Checking",
+                    "Opinion Piece", "News Roundup", "Political Deep Dive", "Trending Analysis"
+                ]
+            else:  # Current Events
+                topics = get_trending_topics_safe()
+            
+            st.session_state.trending_topics = topics
+            st.success(f"✅ Generated {len(topics)} {source_type.lower()} topics")
         
         if 'trending_topics' in st.session_state:
             trending_topics = st.session_state.trending_topics
             
             if trending_topics:
-                st.success(f"✅ Found {len(trending_topics)} trending topics")
-                
                 for i, topic in enumerate(trending_topics, 1):
                     st.markdown(f"""
                     <div class="trend-card">
@@ -611,7 +634,7 @@ if platform == "📈 Google Trends":
                 if api_key:
                     st.markdown("### 🤖 AI Content Analysis")
                     if st.button("🎯 Analyze for Content Opportunities", key="analyze_trends"):
-                        with st.spinner("🤖 Analyzing trends..."):
+                        with st.spinner("🤖 Analyzing topics..."):
                             analysis = analyze_trends_with_ai(trending_topics, creator_name, api_key)
                             
                             if analysis and not analysis.startswith("AI Analysis Error"):
@@ -622,31 +645,85 @@ if platform == "📈 Google Trends":
                                 st.error(analysis)
     
     with tab2:
-        st.subheader("🎯 Custom Content Ideas")
-        st.info("💡 Enter topics you're interested in to get AI-powered content suggestions")
+        st.subheader("🎯 AI Content Generator")
+        st.info("💡 Generate content ideas for any topic or current event")
         
-        custom_topic = st.text_input("Enter a topic:", placeholder="e.g., AI, Politics, Sports")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            custom_topic = st.text_input("Enter any topic:", placeholder="e.g., AI, Politics, Sports, Current Events")
+        with col2:
+            content_type = st.selectbox("Content Type", ["YouTube Video", "Twitter Thread", "Blog Post", "Podcast Episode", "Social Media"])
         
         if st.button("🚀 Generate Content Ideas", key="generate_ideas") and custom_topic and api_key:
             with st.spinner("🤖 Generating content ideas..."):
                 import openai
                 openai.api_key = api_key
                 
-                prompt = f"""Create 5 content ideas for {creator_name} about "{custom_topic}":
+                prompt = f"""Create 5 {content_type} ideas for {creator_name} about "{custom_topic}":
 
 For each idea, provide:
 
-🎬 TITLE: Attention-grabbing title
+🎬 TITLE: Attention-grabbing title perfect for {content_type}
 📝 CONCEPT: 2-sentence description  
-🎯 ANGLE: {creator_name}'s unique perspective
-📱 FORMAT: Video/Tweet/Post/etc.
-🔥 HOOK: Opening line to grab attention"""
+🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely approach this
+📱 FORMAT: Specific format details for {content_type}
+🔥 HOOK: Opening line to grab attention
+⏰ TIMING: Why this is relevant now
+💡 ENGAGEMENT: How to maximize audience interaction"""
                 
                 try:
                     response = openai.ChatCompletion.create(
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt}],
-                        max_tokens=800,
+                        max_tokens=1000,
+                        timeout=30
+                    )
+                    
+                    st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                    st.write(response.choices[0].message.content)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"AI Analysis Error: {str(e)}")
+    
+    with tab3:
+        st.subheader("📊 Keyword Research & Analysis")
+        st.info("💡 Research keywords and topics for content optimization")
+        
+        research_query = st.text_input("Research Topic:", placeholder="e.g., 'conservative politics', 'AI technology'")
+        
+        if st.button("🔍 Research Keywords", key="research_keywords") and research_query and api_key:
+            with st.spinner("🤖 Researching keywords and topics..."):
+                import openai
+                openai.api_key = api_key
+                
+                prompt = f"""Provide keyword research and content strategy for "{research_query}" targeting {creator_name}'s audience:
+
+📊 PRIMARY KEYWORDS:
+- List 10 high-value keywords related to this topic
+
+🎯 CONTENT ANGLES:
+- 5 different angles {creator_name} could take on this topic
+
+📈 TRENDING SUBTOPICS:
+- Current subtopics and emerging discussions
+
+🔍 LONG-TAIL KEYWORDS:
+- Specific phrases people are searching for
+
+📱 PLATFORM STRATEGY:
+- Best platforms for each type of content
+
+⚡ VIRAL POTENTIAL:
+- Which angles have the highest viral/engagement potential
+
+🎬 CONTENT SERIES IDEAS:
+- How to turn this into multiple pieces of content"""
+                
+                try:
+                    response = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=1000,
                         timeout=30
                     )
                     
