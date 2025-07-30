@@ -280,7 +280,7 @@ def search_reddit_by_keywords(query, subreddits, limit=5):
     all_results.sort(key=lambda x: x['data']['score'], reverse=True)
     return all_results[:limit * 3]
 
-def analyze_with_ai(post_title, post_content, comments, api_key, creator_name="Bailey Sarian", image_url=None):
+def analyze_with_ai(post_title, post_content, comments, api_key, creator_name, image_url=None):
     """Analyze post and comments with OpenAI"""
     if not api_key:
         return None
