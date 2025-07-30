@@ -149,6 +149,14 @@ HEADERS = {
     'Accept': 'application/json',
 }
 
+# ============ API KEY MANAGEMENT ============
+
+def get_api_keys():
+    """Get API keys from environment variables"""
+    openai_key = os.getenv('OPENAI_API_KEY', '')
+    youtube_key = os.getenv('YOUTUBE_API_KEY', '')
+    return openai_key, youtube_key
+
 # ============ REDDIT FUNCTIONS ============
 
 def save_post(post_data, analysis, creator_name, subreddit):
@@ -294,7 +302,7 @@ def search_reddit_by_keywords(query, subreddits, limit=5):
     all_results.sort(key=lambda x: x['data']['score'], reverse=True)
     return all_results[:limit * 3]
 
-def analyze_with_ai(post_title, post_content, comments, api_key, creator_name="Daily Wire", image_url=None):
+def analyze_with_ai(post_title, post_content, comments, api_key, creator_name="Bailey Sarian", image_url=None):
     """Analyze post and comments with OpenAI"""
     if not api_key:
         return None
@@ -438,7 +446,7 @@ def display_posts(posts, subreddit, api_key=None):
             else:
                 st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
                 st.markdown(f"### 🤖 AI Analysis for {creator_name}")
-                st.info("🔑 Enter your OpenAI API key in the sidebar to enable AI analysis")
+                st.info("⚠️ AI analysis unavailable - configure API keys in environment variables")
                 st.markdown('</div>', unsafe_allow_html=True)
             
             st.write(f"[View on Reddit](https://reddit.com{permalink})")
@@ -461,7 +469,7 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
             {"title": "Conservative Leaders RESPOND to Latest Crisis", "channel": "Conservative Voices", "views": "675K views", "published": "7 hours ago", "description": "Key conservative figures weigh in on recent developments..."},
             {"title": "DEBUNKED: Fact-Checking the Latest Claims", "channel": "Fact Check Central", "views": "534K views", "published": "9 hours ago", "description": "Separating fact from fiction in recent reports..."}
         ]
-        st.info("📺 Showing sample trending videos (Add YouTube API key for live data)")
+        st.info("📺 Showing sample trending videos (Configure YouTube API key for live data)")
         return sample_trending
     
     try:
@@ -525,7 +533,7 @@ def search_youtube_videos(query, api_key=None, max_results=10):
             {"title": f"Conservative Response to {query} - Must Watch", "channel": "Conservative Voices", "views": "389K views", "published": "8 hours ago", "description": f"Conservative perspective on {query}..."},
             {"title": f"DEBUNKED: Fact-Checking Claims About {query}", "channel": "Fact Check Network", "views": "267K views", "published": "6 hours ago", "description": f"Separating fact from fiction regarding {query}..."}
         ]
-        st.info(f"📺 Showing sample search results for '{query}' (Add YouTube API key for live search)")
+        st.info(f"📺 Showing sample search results for '{query}' (Configure YouTube API key for live search)")
         return sample_results
     
     try:
@@ -628,32 +636,22 @@ platform = st.sidebar.selectbox(
 
 st.sidebar.markdown("---")
 
-st.sidebar.header("🔑 AI Configuration")
-api_key = st.sidebar.text_input("OpenAI API Key", type="password", placeholder="sk-...", key="api_key_input")
+# Get API keys from environment variables
+api_key, youtube_api_key = get_api_keys()
 
+st.sidebar.header("🔑 AI Configuration")
 if api_key:
     st.sidebar.success("✅ AI analysis enabled")
 else:
-    st.sidebar.warning("⚠️ Enter your OpenAI API key to enable AI analysis")
+    st.sidebar.error("❌ AI analysis unavailable")
 
 st.sidebar.markdown("---")
 
-st.sidebar.header("🎬 YouTube API (Optional)")
-youtube_api_key = st.sidebar.text_input("YouTube API Key", type="password", placeholder="AIza...", key="youtube_api_input", help="Optional: Get your key from Google Cloud Console")
-
+st.sidebar.header("🎬 YouTube API Status")
 if youtube_api_key:
-    st.sidebar.success("✅ YouTube API enabled")
-    st.sidebar.info("💡 Enable YouTube Data API v3 in Google Cloud Console")
+    st.sidebar.success("✅ YouTube live data enabled")
 else:
-    st.sidebar.info("💡 Works great with sample data! Add API key for live YouTube data")
-    with st.sidebar.expander("📋 How to get YouTube API key"):
-        st.write("""
-        1. Go to Google Cloud Console
-        2. Create/select a project
-        3. Enable YouTube Data API v3
-        4. Create credentials (API Key)
-        5. Paste key above
-        """)
+    st.sidebar.info("📺 Using YouTube sample data")
 
 st.sidebar.markdown("---")
 
@@ -1057,7 +1055,7 @@ elif platform == "🎬 Show Planner":
         with tab1:
             st.subheader("🎬 Create New Show Concept")
             
-            show_title = st.text_input("Show Title", placeholder="e.g., 'Ben Shapiro Destroys Woke Reddit'", key="show_title_input")
+            show_title = st.text_input("Show Title", placeholder="e.g., 'Bailey Sarian True Crime Deep Dive'", key="show_title_input")
             show_creator = st.selectbox("Host/Creator", list(set([post['creator'] for post in st.session_state.saved_posts])), key="show_creator_input")
             show_theme = st.text_area("Show Theme/Description", placeholder="Brief description of the show concept...", key="show_theme_textarea")
             
