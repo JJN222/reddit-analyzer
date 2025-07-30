@@ -443,89 +443,153 @@ def display_posts(posts, subreddit, api_key=None):
             
             st.write(f"[View on Reddit](https://reddit.com{permalink})")
 
-# ============ CONTENT INTELLIGENCE FUNCTIONS ============
+# ============ YOUTUBE API FUNCTIONS ============
 
-def get_trending_topics_alternative():
-    """Get trending topics using alternative methods"""
-    # Try multiple approaches for trending data
-    trending_topics = []
+def get_youtube_trending(api_key=None, region='US', max_results=15):
+    """Get trending videos from YouTube"""
+    if not api_key:
+        # Return sample trending topics without API
+        sample_trending = [
+            {"title": "Breaking: Major Political Development", "channel": "News Channel", "views": "2.3M views", "published": "2 hours ago"},
+            {"title": "SHOCKING Truth About Latest Scandal", "channel": "Commentary Channel", "views": "1.8M views", "published": "4 hours ago"},
+            {"title": "This Changes Everything - Full Analysis", "channel": "Political Commentary", "views": "956K views", "published": "1 day ago"},
+            {"title": "EXPOSED: What They Don't Want You to Know", "channel": "Investigative News", "views": "743K views", "published": "6 hours ago"},
+            {"title": "LIVE: Breaking News Coverage", "channel": "Live News", "views": "2.1M views", "published": "3 hours ago"},
+            {"title": "The Truth About Recent Events", "channel": "Truth Seekers", "views": "1.2M views", "published": "8 hours ago"},
+            {"title": "Why This Matters More Than You Think", "channel": "Deep Dive", "views": "892K views", "published": "12 hours ago"},
+            {"title": "URGENT: Important Update Everyone Needs", "channel": "News Updates", "views": "1.5M views", "published": "5 hours ago"}
+        ]
+        return sample_trending
     
-    # Method 1: Try Google Trends RSS (sometimes works)
     try:
-        rss_url = "https://trends.google.com/trends/trendingsearches/daily/rss?geo=US"
-        response = requests.get(rss_url, timeout=10)
+        # YouTube API v3 trending videos endpoint
+        url = "https://www.googleapis.com/youtube/v3/videos"
+        params = {
+            'part': 'snippet,statistics',
+            'chart': 'mostPopular',
+            'regionCode': region,
+            'maxResults': max_results,
+            'key': api_key,
+            'videoCategoryId': '25'  # News & Politics category
+        }
+        
+        response = requests.get(url, params=params, timeout=15)
+        
         if response.status_code == 200:
-            import xml.etree.ElementTree as ET
-            root = ET.fromstring(response.content)
+            data = response.json()
+            trending_videos = []
             
-            for item in root.findall('.//item')[:15]:
-                title = item.find('title')
-                if title is not None:
-                    # Extract just the search term from the title
-                    search_term = title.text.split(' - ')[0] if ' - ' in title.text else title.text
-                    trending_topics.append(search_term)
+            for item in data.get('items', []):
+                snippet = item.get('snippet', {})
+                stats = item.get('statistics', {})
+                
+                video_data = {
+                    'title': snippet.get('title', 'No title'),
+                    'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                    'views': f"{int(stats.get('viewCount', 0)):,} views" if stats.get('viewCount') else 'No views',
+                    'published': snippet.get('publishedAt', 'Unknown'),
+                    'video_id': item.get('id', ''),
+                    'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else ''
+                }
+                trending_videos.append(video_data)
             
-            if trending_topics:
-                st.success("✅ Retrieved trends from Google RSS feed")
-                return trending_topics[:15]
-    except:
-        pass
-    
-    # Method 2: Try pytrends with different settings
-    if PYTRENDS_AVAILABLE:
-        try:
-            pytrends = TrendReq(hl='en-US', tz=360, timeout=(5,10), retries=1)
-            trending_searches = pytrends.trending_searches(pn='US')
-            topics = trending_searches[0].head(15).tolist()
-            if topics:
-                st.success("✅ Retrieved trends from pytrends API")
-                return topics
-        except:
-            pass
-    
-    # Method 3: Use current event topics (always available)
-    current_topics = [
-        "Artificial Intelligence", "ChatGPT", "Climate Change", "Cryptocurrency",
-        "Electric Vehicles", "Social Media Trends", "Remote Work", "Inflation",
-        "Space Exploration", "Renewable Energy", "Mental Health", "Cybersecurity",
-        "Virtual Reality", "Streaming Services", "Political News", "Sports Updates",
-        "Celebrity News", "Technology Innovation", "Healthcare", "Education Reform"
-    ]
-    
-    st.info("📊 Showing current popular topics (Google Trends unavailable on cloud platforms)")
-    return current_topics
+            return trending_videos
+        else:
+            st.warning(f"YouTube API error: {response.status_code}")
+            return get_youtube_trending()  # Return sample data
+            
+    except Exception as e:
+        st.warning(f"YouTube API temporarily unavailable: {str(e)}")
+        return get_youtube_trending()  # Return sample data
 
-def get_trending_topics_safe(region='US'):
-    """Safely get trending topics with multiple fallback methods"""
-    return get_trending_topics_alternative()
+def search_youtube_videos(query, api_key=None, max_results=10):
+    """Search YouTube for videos by topic/keywords"""
+    if not api_key:
+        # Return sample search results
+        sample_results = [
+            {"title": f"Latest Analysis: {query}", "channel": "Political Commentary", "views": "523K views", "published": "1 day ago"},
+            {"title": f"BREAKING: {query} Update", "channel": "News Channel", "views": "1.2M views", "published": "3 hours ago"},
+            {"title": f"The Truth About {query}", "channel": "Deep Dive Analysis", "views": "876K views", "published": "2 days ago"},
+            {"title": f"Why {query} Matters", "channel": "Commentary", "views": "432K views", "published": "1 day ago"},
+            {"title": f"{query}: Full Breakdown", "channel": "News Analysis", "views": "654K views", "published": "5 hours ago"}
+        ]
+        return sample_results
+    
+    try:
+        # YouTube API v3 search endpoint
+        url = "https://www.googleapis.com/youtube/v3/search"
+        params = {
+            'part': 'snippet',
+            'q': query,
+            'type': 'video',
+            'order': 'relevance',
+            'maxResults': max_results,
+            'key': api_key,
+            'publishedAfter': (datetime.now() - timedelta(days=7)).isoformat() + 'Z'  # Last 7 days
+        }
+        
+        response = requests.get(url, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            search_results = []
+            
+            for item in data.get('items', []):
+                snippet = item.get('snippet', {})
+                
+                video_data = {
+                    'title': snippet.get('title', 'No title'),
+                    'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                    'published': snippet.get('publishedAt', 'Unknown'),
+                    'video_id': item.get('id', {}).get('videoId', ''),
+                    'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                    'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                }
+                search_results.append(video_data)
+            
+            return search_results
+        else:
+            st.warning(f"YouTube API error: {response.status_code}")
+            return search_youtube_videos(query)  # Return sample data
+            
+    except Exception as e:
+        st.warning(f"YouTube search temporarily unavailable: {str(e)}")
+        return search_youtube_videos(query)  # Return sample data
 
-def analyze_trends_with_ai(trending_topics, creator_name, api_key):
-    """Analyze trending topics for content opportunities"""
+def analyze_youtube_trends_with_ai(trending_videos, creator_name, api_key):
+    """Analyze YouTube trending videos for content opportunities"""
     if not api_key:
         return None
     
     import openai
     openai.api_key = api_key
     
-    trends_text = "\n".join([f"- {trend}" for trend in trending_topics[:8]])
+    # Prepare trending video data for analysis
+    video_titles = []
+    for i, video in enumerate(trending_videos[:8], 1):
+        video_titles.append(f"{i}. \"{video['title']}\" by {video['channel']} ({video['views']})")
     
-    prompt = f"""Analyze these trending topics for {creator_name}'s content opportunities:
+    videos_text = "\n".join(video_titles)
+    
+    prompt = f"""Analyze these trending YouTube videos for {creator_name}'s content opportunities:
 
-{trends_text}
+{videos_text}
 
 For the top 3 most relevant trends, provide:
 
-📈 TREND: [Name]
-🎯 {creator_name.upper()} ANGLE: How {creator_name} could authentically cover this
-🔥 CONTENT IDEA: Specific video/post title
-📱 BEST PLATFORM: YouTube/Twitter/TikTok/etc.
-⏰ URGENCY: How time-sensitive this is (1-10)"""
+📺 TRENDING VIDEO TOPIC: [Main topic/theme]
+🎯 {creator_name.upper()} ANGLE: How {creator_name} could respond, react, or create similar content
+🔥 CONTENT IDEA: Specific video title for {creator_name}'s channel
+📱 FORMAT: Best format (Reaction, Analysis, Response, Original Take)
+⏰ URGENCY: How time-sensitive this trend is (1-10)
+💡 HOOK: Opening line or angle to grab attention
+🎬 SERIES POTENTIAL: Could this become multiple videos?"""
     
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=700,
+            max_tokens=800,
             timeout=30
         )
         return response.choices[0].message.content
@@ -538,7 +602,7 @@ st.sidebar.header("🎯 Content Intelligence Hub")
 
 platform = st.sidebar.selectbox(
     "📊 Choose Platform",
-    ["🌊 Reddit Analysis", "📈 Content Intelligence", "🎬 Show Planner", "💾 Saved Content"],
+    ["🌊 Reddit Analysis", "📺 YouTube Intelligence", "🎬 Show Planner", "💾 Saved Content"],
     key="platform_select"
 )
 
@@ -551,6 +615,16 @@ if api_key:
     st.sidebar.success("✅ AI analysis enabled")
 else:
     st.sidebar.warning("⚠️ Enter your OpenAI API key to enable AI analysis")
+
+st.sidebar.markdown("---")
+
+st.sidebar.header("🎬 YouTube API (Optional)")
+youtube_api_key = st.sidebar.text_input("YouTube API Key", type="password", placeholder="AIza...", key="youtube_api_input", help="Optional: For live YouTube data")
+
+if youtube_api_key:
+    st.sidebar.success("✅ YouTube API enabled")
+else:
+    st.sidebar.info("💡 YouTube API key enables live trending data")
 
 st.sidebar.markdown("---")
 
@@ -572,70 +646,49 @@ if st.session_state.show_concepts:
 
 # ============ MAIN CONTENT ============
 
-if platform == "📈 Content Intelligence":
-    st.header("📈 Content Intelligence Center")
+if platform == "📺 YouTube Intelligence":
+    st.header("📺 YouTube Intelligence Center")
     
-    st.info("💡 **Note:** Google Trends API is often blocked on cloud platforms. This section provides alternative trending insights and AI-powered content generation.")
+    st.info("💡 **YouTube Intelligence:** Analyze trending videos and search for content opportunities. YouTube API key is optional - works with sample data too!")
     
-    tab1, tab2, tab3 = st.tabs(["🔥 Topic Analysis", "🎯 Content Ideas", "📊 Keyword Research"])
+    tab1, tab2, tab3 = st.tabs(["🔥 Trending Videos", "🔍 Video Search", "🎯 Content Ideas"])
     
     with tab1:
-        st.subheader("🔥 Trending Topic Analysis")
+        st.subheader("🔥 What's Trending on YouTube")
         
         col1, col2 = st.columns([2, 1])
         with col1:
-            if st.button("🔄 Get Current Topics", key="get_trends"):
-                with st.spinner("Generating current trending topics..."):
-                    trending_topics = get_trending_topics_safe()
-                    st.session_state.trending_topics = trending_topics
+            if st.button("🔄 Get Trending Videos", key="get_youtube_trending"):
+                with st.spinner("Fetching trending YouTube videos..."):
+                    trending_videos = get_youtube_trending(youtube_api_key)
+                    st.session_state.trending_videos = trending_videos
         
         with col2:
-            source_type = st.selectbox("Topic Source", ["Current Events", "Twitter Style", "YouTube Style", "Political Focus"], key="topic_source")
+            region = st.selectbox("Region", ["US", "CA", "GB", "AU", "DE", "FR"], key="youtube_region")
         
-        # Generate topics based on source type
-        if st.button("🎯 Generate Topics", key="generate_topics_btn"):
-            if source_type == "Political Focus":
-                topics = [
-                    "Border Security", "Economic Policy", "Election Integrity", "Free Speech",
-                    "Second Amendment", "Healthcare Reform", "Education Policy", "Energy Independence",
-                    "Foreign Policy", "Judicial Appointments", "Tax Reform", "Government Spending",
-                    "Constitutional Rights", "State Rights", "Immigration Reform"
-                ]
-            elif source_type == "Twitter Style":
-                topics = [
-                    "Viral Debate", "Celebrity Controversy", "Breaking Politics", "Tech Scandal",
-                    "Sports Drama", "Entertainment News", "Social Media Trend", "Political Gaffe",
-                    "Cultural Moment", "Trending Hashtag", "Public Feud", "Viral Challenge"
-                ]
-            elif source_type == "YouTube Style":
-                topics = [
-                    "Reaction Content", "Political Commentary", "News Analysis", "Debate Response",
-                    "Policy Breakdown", "Current Events", "Interview Highlights", "Fact Checking",
-                    "Opinion Piece", "News Roundup", "Political Deep Dive", "Trending Analysis"
-                ]
-            else:  # Current Events
-                topics = get_trending_topics_safe()
+        if 'trending_videos' in st.session_state:
+            trending_videos = st.session_state.trending_videos
             
-            st.session_state.trending_topics = topics
-            st.success(f"✅ Generated {len(topics)} {source_type.lower()} topics")
-        
-        if 'trending_topics' in st.session_state:
-            trending_topics = st.session_state.trending_topics
-            
-            if trending_topics:
-                for i, topic in enumerate(trending_topics, 1):
+            if trending_videos:
+                st.success(f"✅ Found {len(trending_videos)} trending videos")
+                
+                for i, video in enumerate(trending_videos, 1):
                     st.markdown(f"""
                     <div class="trend-card">
                         <strong>#{i}</strong> &nbsp;&nbsp;
-                        <span style="font-size: 1.1rem; font-weight: 500;">{topic}</span>
+                        <span style="font-size: 1.1rem; font-weight: 500;">{video['title']}</span><br>
+                        <small style="color: #666;">by {video['channel']} • {video['views']} • {video['published']}</small>
                     </div>
                     """, unsafe_allow_html=True)
+                    
+                    if video.get('video_id') and youtube_api_key:
+                        st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                 
                 if api_key:
                     st.markdown("### 🤖 AI Content Analysis")
-                    if st.button("🎯 Analyze for Content Opportunities", key="analyze_trends"):
-                        with st.spinner("🤖 Analyzing topics..."):
-                            analysis = analyze_trends_with_ai(trending_topics, creator_name, api_key)
+                    if st.button("🎯 Analyze for Content Opportunities", key="analyze_youtube_trends"):
+                        with st.spinner("🤖 Analyzing trending videos..."):
+                            analysis = analyze_youtube_trends_with_ai(trending_videos, creator_name, api_key)
                             
                             if analysis and not analysis.startswith("AI Analysis Error"):
                                 st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
@@ -645,85 +698,110 @@ if platform == "📈 Content Intelligence":
                                 st.error(analysis)
     
     with tab2:
-        st.subheader("🎯 AI Content Generator")
-        st.info("💡 Generate content ideas for any topic or current event")
+        st.subheader("🔍 YouTube Video Search")
+        st.info("💡 Search YouTube for videos by topic or keywords")
         
         col1, col2 = st.columns([2, 1])
         with col1:
-            custom_topic = st.text_input("Enter any topic:", placeholder="e.g., AI, Politics, Sports, Current Events")
+            search_query = st.text_input("Search YouTube:", placeholder="e.g., 'Biden speech', 'Trump rally', 'AI technology'")
         with col2:
-            content_type = st.selectbox("Content Type", ["YouTube Video", "Twitter Thread", "Blog Post", "Podcast Episode", "Social Media"])
+            search_timeframe = st.selectbox("Timeframe", ["Last Week", "Last Month", "Last Year"], key="youtube_timeframe")
         
-        if st.button("🚀 Generate Content Ideas", key="generate_ideas") and custom_topic and api_key:
-            with st.spinner("🤖 Generating content ideas..."):
-                import openai
-                openai.api_key = api_key
+        if st.button("🔍 Search Videos", key="search_youtube") and search_query:
+            with st.spinner(f"🔍 Searching YouTube for '{search_query}'..."):
+                search_results = search_youtube_videos(search_query, youtube_api_key)
                 
-                prompt = f"""Create 5 {content_type} ideas for {creator_name} about "{custom_topic}":
-
-For each idea, provide:
-
-🎬 TITLE: Attention-grabbing title perfect for {content_type}
-📝 CONCEPT: 2-sentence description  
-🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely approach this
-📱 FORMAT: Specific format details for {content_type}
-🔥 HOOK: Opening line to grab attention
-⏰ TIMING: Why this is relevant now
-💡 ENGAGEMENT: How to maximize audience interaction"""
-                
-                try:
-                    response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": prompt}],
-                        max_tokens=1000,
-                        timeout=30
-                    )
+                if search_results:
+                    st.success(f"✅ Found {len(search_results)} videos for '{search_query}'")
                     
-                    st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                    st.write(response.choices[0].message.content)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"AI Analysis Error: {str(e)}")
+                    for i, video in enumerate(search_results, 1):
+                        with st.expander(f"#{i}: {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
+                            col1, col2 = st.columns([3, 1])
+                            
+                            with col1:
+                                st.write(f"**Channel:** {video['channel']}")
+                                st.write(f"**Published:** {video['published']}")
+                                if video.get('description'):
+                                    st.write(f"**Description:** {video['description']}")
+                            
+                            with col2:
+                                if video.get('thumbnail'):
+                                    st.image(video['thumbnail'], width=120)
+                            
+                            if video.get('video_id') and youtube_api_key:
+                                st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                            
+                            # AI Analysis for individual videos
+                            if api_key:
+                                if st.button(f"🤖 Analyze This Video", key=f"analyze_video_{i}"):
+                                    with st.spinner("🤖 Analyzing video for content opportunities..."):
+                                        video_prompt = f"""Analyze this YouTube video for {creator_name}'s content strategy:
+
+Title: {video['title']}
+Channel: {video['channel']}
+Description: {video.get('description', 'No description')}
+
+Provide analysis:
+
+📝 VIDEO TOPIC: What this video is about
+🎯 {creator_name.upper()} OPPORTUNITY: How {creator_name} could respond, react, or create related content
+🔥 CONTENT IDEAS: 3 specific video ideas inspired by this
+📱 FORMAT: Best approach (Reaction, Response, Original Take, Debate)
+💡 UNIQUE ANGLE: What {creator_name} could add that's different"""
+                                        
+                                        try:
+                                            import openai
+                                            openai.api_key = api_key
+                                            
+                                            response = openai.ChatCompletion.create(
+                                                model="gpt-3.5-turbo",
+                                                messages=[{"role": "user", "content": video_prompt}],
+                                                max_tokens=600,
+                                                timeout=30
+                                            )
+                                            
+                                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                            st.write(response.choices[0].message.content)
+                                            st.markdown('</div>', unsafe_allow_html=True)
+                                        except Exception as e:
+                                            st.error(f"AI Analysis Error: {str(e)}")
+                else:
+                    st.error(f"❌ No videos found for '{search_query}'. Try different keywords.")
     
     with tab3:
-        st.subheader("📊 Keyword Research & Analysis")
-        st.info("💡 Research keywords and topics for content optimization")
+        st.subheader("🎯 AI Video Content Generator")
+        st.info("💡 Generate video content ideas for any topic")
         
-        research_query = st.text_input("Research Topic:", placeholder="e.g., 'conservative politics', 'AI technology'")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            content_topic = st.text_input("Video Topic:", placeholder="e.g., AI, Politics, Current Events")
+        with col2:
+            video_style = st.selectbox("Video Style", ["Reaction", "Analysis", "Commentary", "Debate", "Breakdown", "Response"], key="video_style")
         
-        if st.button("🔍 Research Keywords", key="research_keywords") and research_query and api_key:
-            with st.spinner("🤖 Researching keywords and topics..."):
+        if st.button("🚀 Generate Video Ideas", key="generate_video_ideas") and content_topic and api_key:
+            with st.spinner("🤖 Generating video content ideas..."):
                 import openai
                 openai.api_key = api_key
                 
-                prompt = f"""Provide keyword research and content strategy for "{research_query}" targeting {creator_name}'s audience:
+                prompt = f"""Create 5 YouTube video ideas for {creator_name} about "{content_topic}" in {video_style} style:
 
-📊 PRIMARY KEYWORDS:
-- List 10 high-value keywords related to this topic
+For each video idea, provide:
 
-🎯 CONTENT ANGLES:
-- 5 different angles {creator_name} could take on this topic
-
-📈 TRENDING SUBTOPICS:
-- Current subtopics and emerging discussions
-
-🔍 LONG-TAIL KEYWORDS:
-- Specific phrases people are searching for
-
-📱 PLATFORM STRATEGY:
-- Best platforms for each type of content
-
-⚡ VIRAL POTENTIAL:
-- Which angles have the highest viral/engagement potential
-
-🎬 CONTENT SERIES IDEAS:
-- How to turn this into multiple pieces of content"""
+🎬 TITLE: YouTube-optimized title (under 60 characters, clickable)
+📝 CONCEPT: 2-sentence video description
+🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely approach this
+🎥 STRUCTURE: Basic video outline (intro, main points, conclusion)
+🔥 HOOK: Opening 15 seconds to grab attention
+📊 THUMBNAIL IDEA: What the thumbnail should show
+⏰ OPTIMAL LENGTH: Recommended video duration
+💡 SERIES POTENTIAL: Could this become multiple videos?
+🎭 CALL TO ACTION: How to end the video"""
                 
                 try:
                     response = openai.ChatCompletion.create(
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt}],
-                        max_tokens=1000,
+                        max_tokens=1200,
                         timeout=30
                     )
                     
