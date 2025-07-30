@@ -273,6 +273,45 @@ def get_top_comments(subreddit, post_id, limit=3):
         pass
     return []
 
+def analyze_with_legacy_openai(post_title, post_content, comments, creator_name, image_url=None):
+    """Fallback for older OpenAI library versions"""
+    import openai
+    
+    # Prepare content for analysis
+    content = f"Post Title: {post_title}\n"
+    if post_content and post_content != post_title:
+        content += f"Post Content: {post_content[:500]}...\n"
+    
+    content += "Top Comments:\n"
+    for i, comment in enumerate(comments[:3], 1):
+        content += f"{i}. {comment['body'][:200]}...\n"
+    
+    creator_prompt = f"""Analyze this Reddit post for {creator_name}'s content strategy. First, consider what you know about {creator_name}'s personality, political positions, communication style, and typical takes. Then analyze the content accordingly:
+
+{content}
+
+Provide analysis in this format:
+📝 SUMMARY: What this post is really about (1-2 sentences)
+💭 COMMENTER SENTIMENT: How the commenters in this thread are feeling (angry, excited, confused, etc.)
+📰 NEWS CONTEXT: Connect this to current events, trending topics, or recent news stories
+📊 NORMAL TAKE: What {creator_name} would typically say about this topic, based on their known positions and style
+🔥 HOT TAKE: {creator_name}'s most provocative, exaggerated take designed for viral content - stay true to their personality but make it bold and shareable
+📱 SOCIAL CONTENT: Specific YouTube titles and social media content ideas that {creator_name} would actually use
+⚠️ CONTROVERSY LEVEL: How polarizing this content would be for {creator_name} (1-10 scale)
+
+Important: Base your analysis on {creator_name}'s actual known personality, political positions, and communication style."""
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": creator_prompt}],
+            max_tokens=600,
+            timeout=20
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI Analysis Error: {str(e)}"
+    
 def analyze_with_ai(post_title, post_content, comments, api_key, creator_name="Daily Wire", image_url=None):
     """Analyze post and comments with OpenAI"""
     if not api_key:
@@ -280,7 +319,11 @@ def analyze_with_ai(post_title, post_content, comments, api_key, creator_name="D
     
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key)
+        # Initialize client with explicit parameters to avoid proxy conflicts
+        client = OpenAI(
+            api_key=api_key,
+            timeout=20.0
+        )
         
         # Prepare content for analysis
         content = f"Post Title: {post_title}\n"
@@ -307,69 +350,17 @@ Provide analysis in this format:
 
 Important: Base your analysis on {creator_name}'s actual known personality, political positions, and communication style."""
         
-        messages = []
-        
-        if image_url:
-            # Modified prompt to avoid person identification issues
-            image_prompt = f"""Analyze this Reddit post for {creator_name}'s content strategy. 
-
-IMPORTANT: Do NOT identify any specific people in the image. Instead, focus on:
-- What type of content/situation is shown (meme, screenshot, news image, etc.)
-- The general context or message being conveyed
-- How this relates to the post title and comments
-
-{content}
-
-Provide analysis in this format:
-🖼️ IMAGE CONTENT: Describe what type of image this is and its general message (DO NOT identify specific people)
-📝 SUMMARY: What this post is really about (1-2 sentences)
-💭 COMMENTER SENTIMENT: How the commenters in this thread are feeling (angry, excited, confused, etc.)
-📰 NEWS CONTEXT: Connect this to current events, trending topics, or recent news stories
-📊 NORMAL TAKE: What {creator_name} would typically say about this topic, based on their known positions and style
-🔥 HOT TAKE: {creator_name}'s most provocative, exaggerated take designed for viral content - stay true to their personality but make it bold and shareable
-📱 SOCIAL CONTENT: Specific YouTube titles and social media content ideas that {creator_name} would actually use
-⚠️ CONTROVERSY LEVEL: How polarizing this content would be for {creator_name} (1-10 scale)
-
-Focus on the content and context, not on identifying individuals."""
-
-            messages.append({
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": image_prompt},
-                    {"type": "image_url", "image_url": {"url": image_url}}
-                ]
-            })
-            
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=messages,
-                    max_tokens=700,
-                    timeout=30
-                )
-                return response.choices[0].message.content
-            except Exception as e:
-                # If image analysis fails, fall back to text-only analysis
-                st.warning("🖼️ Image analysis failed, analyzing text content only...")
-                messages = [{"role": "user", "content": creator_prompt}]
-                
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=messages,
-                    max_tokens=600,
-                    timeout=20
-                )
-                return response.choices[0].message.content
-        else:
-            messages.append({"role": "user", "content": creator_prompt})
-            
+        try:
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=messages,
+                messages=[{"role": "user", "content": creator_prompt}],
                 max_tokens=600,
                 timeout=20
             )
             return response.choices[0].message.content
+        except Exception as e:
+            # Fallback to legacy method
+            return analyze_with_legacy_openai(post_title, post_content, comments, creator_name, image_url)
         
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
