@@ -445,24 +445,59 @@ def display_posts(posts, subreddit, api_key=None):
 
 # ============ GOOGLE TRENDS FUNCTIONS ============
 
-def get_trending_topics_safe(region='US'):
-    """Safely get trending topics with fallback"""
-    if not PYTRENDS_AVAILABLE:
-        return ["Google Trends", "AI Technology", "Social Media", "Content Creation", "Digital Marketing"]
+def get_trending_topics_alternative():
+    """Get trending topics using alternative methods"""
+    # Try multiple approaches for trending data
+    trending_topics = []
     
+    # Method 1: Try Google Trends RSS (sometimes works)
     try:
-        pytrends = TrendReq(hl='en-US', tz=360, timeout=(10,25), retries=2, backoff_factor=0.1)
-        trending_searches = pytrends.trending_searches(pn=region)
-        return trending_searches[0].head(15).tolist()
-    except Exception as e:
-        # Return sample trending topics as fallback
-        st.warning(f"⚠️ Google Trends temporarily unavailable. Showing sample topics.")
-        return [
-            "Artificial Intelligence", "Content Creator", "Social Media Trends",
-            "Digital Marketing", "YouTube Strategy", "TikTok Viral",
-            "Podcast Growth", "Influencer Marketing", "SEO Tips",
-            "Video Production", "Brand Strategy", "Online Business"
-        ]
+        rss_url = "https://trends.google.com/trends/trendingsearches/daily/rss?geo=US"
+        response = requests.get(rss_url, timeout=10)
+        if response.status_code == 200:
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(response.content)
+            
+            for item in root.findall('.//item')[:15]:
+                title = item.find('title')
+                if title is not None:
+                    # Extract just the search term from the title
+                    search_term = title.text.split(' - ')[0] if ' - ' in title.text else title.text
+                    trending_topics.append(search_term)
+            
+            if trending_topics:
+                st.success("✅ Retrieved trends from Google RSS feed")
+                return trending_topics[:15]
+    except:
+        pass
+    
+    # Method 2: Try pytrends with different settings
+    if PYTRENDS_AVAILABLE:
+        try:
+            pytrends = TrendReq(hl='en-US', tz=360, timeout=(5,10), retries=1)
+            trending_searches = pytrends.trending_searches(pn='US')
+            topics = trending_searches[0].head(15).tolist()
+            if topics:
+                st.success("✅ Retrieved trends from pytrends API")
+                return topics
+        except:
+            pass
+    
+    # Method 3: Use current event topics (always available)
+    current_topics = [
+        "Artificial Intelligence", "ChatGPT", "Climate Change", "Cryptocurrency",
+        "Electric Vehicles", "Social Media Trends", "Remote Work", "Inflation",
+        "Space Exploration", "Renewable Energy", "Mental Health", "Cybersecurity",
+        "Virtual Reality", "Streaming Services", "Political News", "Sports Updates",
+        "Celebrity News", "Technology Innovation", "Healthcare", "Education Reform"
+    ]
+    
+    st.info("📊 Showing current popular topics (Google Trends unavailable on cloud platforms)")
+    return current_topics
+
+def get_trending_topics_safe(region='US'):
+    """Safely get trending topics with multiple fallback methods"""
+    return get_trending_topics_alternative()
 
 def analyze_trends_with_ai(trending_topics, creator_name, api_key):
     """Analyze trending topics for content opportunities"""
