@@ -401,6 +401,7 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                 with st.spinner("🤖 AI analyzing content..."):
                     analysis = analyze_with_ai(title, selftext, comments, api_key, creator_name, image_url if is_image else None)
                 
+                
                 if analysis and not analysis.startswith("AI Analysis Error"):
                     st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
                     
@@ -1240,7 +1241,7 @@ elif platform == "🌊 Reddit Analysis":
                         if posts:
                             all_posts_found = True
                             st.subheader(f"{category_name} - r/{subreddit_input}")
-                            display_posts(posts, subreddit_input, api_key if api_key else None)
+                            display_posts(posts, subreddit_input, api_key if api_key else None, creator_name)
                         else:
                             st.error(f"❌ Could not fetch {category} posts from r/{subreddit_input}")
                 
