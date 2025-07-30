@@ -1,11 +1,11 @@
 import streamlit as st
 import requests
-# import pandas as pd
 from datetime import datetime
 import time
 import openai
 import os
 import xml.etree.ElementTree as ET
+import re  # Add this line
 
 # Configure Streamlit page
 st.set_page_config(
@@ -311,6 +311,15 @@ def get_reddit_posts_rss(subreddit, limit=5):
                             # Extract post ID from link
                             post_id = "rss_" + str(hash(link))[-8:]
                             
+                            # Clean up HTML tags from content
+                            import re
+                            clean_content = re.sub(r'<[^>]+>', '', content_text) if content_text else ""
+                            clean_content = clean_content.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+
+                            # Extract actual author from content if possible
+                            author_match = re.search(r'/u/([^\s<]+)', content_text) if content_text else None
+                            actual_author = author_match.group(1) if author_match else 'Unknown'
+
                             # Create a JSON-like structure similar to Reddit API
                             post_data = {
                                 'data': {
@@ -320,14 +329,15 @@ def get_reddit_posts_rss(subreddit, limit=5):
                                     'permalink': link.replace('https://www.reddit.com', ''),
                                     'score': 0,  # RSS doesn't provide scores
                                     'num_comments': 0,  # RSS doesn't provide comment counts
-                                    'selftext': content_text[:500] + "..." if len(content_text) > 500 else content_text,
+                                    'selftext': clean_content[:200] + "..." if len(clean_content) > 200 else clean_content,
                                     'is_video': False,
                                     'is_self': 'self.' in link,
                                     'preview': None,
                                     'created_utc': time.time(),  # Use current time as fallback
-                                    'author': 'RSS_Feed'
+                                    'author': actual_author
                                 }
                             }
+                            
                             posts.append(post_data)
                             
                         except Exception as e:
@@ -379,6 +389,8 @@ def analyze_with_ai(post_title, post_content, comments, api_key, creator_name="D
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
+    except Exception as e:
+        return f"AI Setup Error: {str(e)}"
         
         # Prepare content for analysis
         content = f"Post Title: {post_title}\n"
