@@ -873,7 +873,7 @@ st.sidebar.header("🎯 Content Intelligence Hub")
 
 platform = st.sidebar.selectbox(
     "📊 Choose Platform",
-    ["🌊 Reddit Analysis", "📺 YouTube Intelligence", "🎬 Show Planner", "💾 Saved Content"],
+    ["🌊 Reddit Analysis", "📺 YouTube Intelligence"],
     key="platform_select"
 )
 
@@ -889,11 +889,6 @@ creator_name = st.sidebar.text_input(
 
 st.sidebar.markdown("---")
 
-# Show metrics
-if st.session_state.saved_posts:
-    st.sidebar.metric("💾 Saved Posts", len(st.session_state.saved_posts))
-if st.session_state.show_concepts:
-    st.sidebar.metric("🎬 Show Concepts", len(st.session_state.show_concepts))
 
 st.sidebar.markdown("---")
 
