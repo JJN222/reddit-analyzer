@@ -6,12 +6,7 @@ import time
 import openai
 import os
 
-# Try to import pytrends, but don't fail if it's not available
-try:
-    from pytrends.request import TrendReq
-    PYTRENDS_AVAILABLE = True
-except ImportError:
-    PYTRENDS_AVAILABLE = False
+# Removed pytrends - not used in cloud deployment
 
 # Configure Streamlit page
 st.set_page_config(
@@ -636,25 +631,6 @@ platform = st.sidebar.selectbox(
 
 st.sidebar.markdown("---")
 
-# Get API keys from environment variables
-api_key, youtube_api_key = get_api_keys()
-
-st.sidebar.header("🔑 AI Configuration")
-if api_key:
-    st.sidebar.success("✅ AI analysis enabled")
-else:
-    st.sidebar.error("❌ AI analysis unavailable")
-
-st.sidebar.markdown("---")
-
-st.sidebar.header("🎬 YouTube API Status")
-if youtube_api_key:
-    st.sidebar.success("✅ YouTube live data enabled")
-else:
-    st.sidebar.info("📺 Using YouTube sample data")
-
-st.sidebar.markdown("---")
-
 st.sidebar.header("⚙️ Creator Settings")
 creator_name = st.sidebar.text_input(
     "🎙️ Creator/Show",
@@ -670,6 +646,23 @@ if st.session_state.saved_posts:
     st.sidebar.metric("💾 Saved Posts", len(st.session_state.saved_posts))
 if st.session_state.show_concepts:
     st.sidebar.metric("🎬 Show Concepts", len(st.session_state.show_concepts))
+
+st.sidebar.markdown("---")
+
+# Get API keys from environment variables
+api_key, youtube_api_key = get_api_keys()
+
+# API status - lower priority, less emphasized
+with st.sidebar.expander("🔑 API Status", expanded=False):
+    if api_key:
+        st.success("✅ AI analysis enabled")
+    else:
+        st.error("❌ AI analysis unavailable")
+    
+    if youtube_api_key:
+        st.success("✅ YouTube live data enabled")
+    else:
+        st.info("📺 Using sample data")
 
 # ============ MAIN CONTENT ============
 
