@@ -736,14 +736,32 @@ def get_youtube_comments(video_id, api_key=None, max_results=20):
             return comments
         elif response.status_code == 403:
             st.warning("⚠️ Comments disabled or API quota exceeded. Showing sample comments.")
-            return get_youtube_comments(video_id)
+            return [
+                {"author": "TruthSeeker2024", "text": "This is exactly what I've been saying! Finally someone gets it.", "likes": 127},
+                {"author": "SkepticalViewer", "text": "I disagree with this take. Here's why this analysis is flawed...", "likes": 89},
+                {"author": "CasualObserver", "text": "Great breakdown! Really helps me understand the situation better.", "likes": 45},
+                {"author": "ControversialTakes", "text": "This is going to trigger so many people but it's the truth", "likes": 203},
+                {"author": "ThoughtfulCritic", "text": "While I appreciate the perspective, I think there are some nuances missing here", "likes": 67}
+            ]
         else:
             st.warning(f"⚠️ Comments API error {response.status_code}. Using sample comments.")
-            return get_youtube_comments(video_id)
+            return [
+                {"author": "TruthSeeker2024", "text": "This is exactly what I've been saying! Finally someone gets it.", "likes": 127},
+                {"author": "SkepticalViewer", "text": "I disagree with this take. Here's why this analysis is flawed...", "likes": 89},
+                {"author": "CasualObserver", "text": "Great breakdown! Really helps me understand the situation better.", "likes": 45},
+                {"author": "ControversialTakes", "text": "This is going to trigger so many people but it's the truth", "likes": 203},
+                {"author": "ThoughtfulCritic", "text": "While I appreciate the perspective, I think there are some nuances missing here", "likes": 67}
+            ]
             
     except Exception as e:
         st.warning(f"⚠️ Comments temporarily unavailable: {str(e)[:50]}... Using sample data.")
-        return get_youtube_comments(video_id)
+        return [
+            {"author": "TruthSeeker2024", "text": "This is exactly what I've been saying! Finally someone gets it.", "likes": 127},
+            {"author": "SkepticalViewer", "text": "I disagree with this take. Here's why this analysis is flawed...", "likes": 89},
+            {"author": "CasualObserver", "text": "Great breakdown! Really helps me understand the situation better.", "likes": 45},
+            {"author": "ControversialTakes", "text": "This is going to trigger so many people but it's the truth", "likes": 203},
+            {"author": "ThoughtfulCritic", "text": "While I appreciate the perspective, I think there are some nuances missing here", "likes": 67}
+        ]
 
 def analyze_video_comments_with_ai(comments, video_title, creator_name, api_key):
     """Analyze YouTube video comments for creator insights"""
@@ -1095,11 +1113,14 @@ Provide {creator_name}'s reaction strategy:
                     if f"comment_analysis_{i}" in st.session_state:
                         analysis = st.session_state[f"comment_analysis_{i}"]
                         
-                        if f"comments_{i}" in st.session_state:
-                            comments = st.session_state[f"comments_{i}"]
+                        if f"comments_data_{i}" in st.session_state:
+                            comments = st.session_state[f"comments_data_{i}"]
                             st.write("**📝 Top Comments:**")
-                            for j, comment in enumerate(comments[:5], 1):
-                                st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
+                            if isinstance(comments, list) and comments:
+                                for j, comment in enumerate(comments[:5], 1):
+                                    st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
+                            else:
+                                st.write("No comments available to display")
                         
                         if analysis and not analysis.startswith("Comment Analysis Error"):
                             st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
