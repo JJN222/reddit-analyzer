@@ -141,7 +141,7 @@ if 'saved_posts' not in st.session_state:
 if 'show_concepts' not in st.session_state:
     st.session_state.show_concepts = []
 if 'selected_subreddit' not in st.session_state:
-    st.session_state.selected_subreddit = "Conservative"
+    st.session_state.selected_subreddit = "TrueCrime"
 
 # Reddit API headers
 HEADERS = {
@@ -450,15 +450,18 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
     if not api_key:
         # Return sample trending topics without API
         sample_trending = [
-            {"title": "Breaking: Major Political Development", "channel": "News Channel", "views": "2.3M views", "published": "2 hours ago"},
-            {"title": "SHOCKING Truth About Latest Scandal", "channel": "Commentary Channel", "views": "1.8M views", "published": "4 hours ago"},
-            {"title": "This Changes Everything - Full Analysis", "channel": "Political Commentary", "views": "956K views", "published": "1 day ago"},
-            {"title": "EXPOSED: What They Don't Want You to Know", "channel": "Investigative News", "views": "743K views", "published": "6 hours ago"},
-            {"title": "LIVE: Breaking News Coverage", "channel": "Live News", "views": "2.1M views", "published": "3 hours ago"},
-            {"title": "The Truth About Recent Events", "channel": "Truth Seekers", "views": "1.2M views", "published": "8 hours ago"},
-            {"title": "Why This Matters More Than You Think", "channel": "Deep Dive", "views": "892K views", "published": "12 hours ago"},
-            {"title": "URGENT: Important Update Everyone Needs", "channel": "News Updates", "views": "1.5M views", "published": "5 hours ago"}
+            {"title": "BREAKING: Major Political Development Shakes Washington", "channel": "Political News Network", "views": "2.3M views", "published": "2 hours ago", "description": "Latest updates on the developing political situation..."},
+            {"title": "SHOCKING Truth About Latest Government Scandal EXPOSED", "channel": "Truth Commentary", "views": "1.8M views", "published": "4 hours ago", "description": "Deep dive investigation reveals concerning details..."},
+            {"title": "This Changes EVERYTHING - Full Analysis & Breakdown", "channel": "Conservative Analysis", "views": "956K views", "published": "1 day ago", "description": "Complete breakdown of recent events and implications..."},
+            {"title": "THEY DON'T WANT You to Know This - Hidden Truth Revealed", "channel": "Independent Investigator", "views": "743K views", "published": "6 hours ago", "description": "Uncovering facts the mainstream media won't cover..."},
+            {"title": "LIVE: Breaking News Coverage - Stay Updated", "channel": "24/7 News Stream", "views": "2.1M views", "published": "3 hours ago", "description": "Continuous coverage of developing stories..."},
+            {"title": "The REAL Story Behind Recent Events Nobody Talks About", "channel": "Alternative Media", "views": "1.2M views", "published": "8 hours ago", "description": "Alternative perspective on current events..."},
+            {"title": "Why This Matters MORE Than You Think - Deep Dive", "channel": "Political Deep Dive", "views": "892K views", "published": "12 hours ago", "description": "Analyzing the broader implications and context..."},
+            {"title": "URGENT Update: What Everyone Needs to Know RIGHT NOW", "channel": "Breaking Updates", "views": "1.5M views", "published": "5 hours ago", "description": "Critical information for staying informed..."},
+            {"title": "Conservative Leaders RESPOND to Latest Crisis", "channel": "Conservative Voices", "views": "675K views", "published": "7 hours ago", "description": "Key conservative figures weigh in on recent developments..."},
+            {"title": "DEBUNKED: Fact-Checking the Latest Claims", "channel": "Fact Check Central", "views": "534K views", "published": "9 hours ago", "description": "Separating fact from fiction in recent reports..."}
         ]
+        st.info("📺 Showing sample trending videos (Add YouTube API key for live data)")
         return sample_trending
     
     try:
@@ -493,13 +496,20 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
                 }
                 trending_videos.append(video_data)
             
+            st.success("✅ Retrieved live YouTube trending data")
             return trending_videos
+        elif response.status_code == 403:
+            st.warning("⚠️ YouTube API key invalid or quota exceeded. Showing sample data.")
+            return get_youtube_trending()  # Return sample data
+        elif response.status_code == 400:
+            st.warning("⚠️ YouTube API request error. Check your API key permissions.")
+            return get_youtube_trending()  # Return sample data
         else:
-            st.warning(f"YouTube API error: {response.status_code}")
+            st.warning(f"⚠️ YouTube API error {response.status_code}. Using sample data.")
             return get_youtube_trending()  # Return sample data
             
     except Exception as e:
-        st.warning(f"YouTube API temporarily unavailable: {str(e)}")
+        st.warning(f"⚠️ YouTube API temporarily unavailable: {str(e)[:50]}... Using sample data.")
         return get_youtube_trending()  # Return sample data
 
 def search_youtube_videos(query, api_key=None, max_results=10):
@@ -507,12 +517,15 @@ def search_youtube_videos(query, api_key=None, max_results=10):
     if not api_key:
         # Return sample search results
         sample_results = [
-            {"title": f"Latest Analysis: {query}", "channel": "Political Commentary", "views": "523K views", "published": "1 day ago"},
-            {"title": f"BREAKING: {query} Update", "channel": "News Channel", "views": "1.2M views", "published": "3 hours ago"},
-            {"title": f"The Truth About {query}", "channel": "Deep Dive Analysis", "views": "876K views", "published": "2 days ago"},
-            {"title": f"Why {query} Matters", "channel": "Commentary", "views": "432K views", "published": "1 day ago"},
-            {"title": f"{query}: Full Breakdown", "channel": "News Analysis", "views": "654K views", "published": "5 hours ago"}
+            {"title": f"BREAKING: Latest Analysis on {query}", "channel": "Political Commentary Pro", "views": "523K views", "published": "1 day ago", "description": f"In-depth analysis of {query} and its implications..."},
+            {"title": f"URGENT UPDATE: {query} - What You Need to Know", "channel": "News Analysis Channel", "views": "1.2M views", "published": "3 hours ago", "description": f"Breaking developments regarding {query}..."},
+            {"title": f"The TRUTH About {query} They Don't Want You to Know", "channel": "Independent Analysis", "views": "876K views", "published": "2 days ago", "description": f"Uncovering the real story behind {query}..."},
+            {"title": f"Why {query} Matters More Than You Think", "channel": "Deep Dive Commentary", "views": "432K views", "published": "1 day ago", "description": f"Exploring the broader context of {query}..."},
+            {"title": f"{query}: Complete Breakdown and Analysis", "channel": "Political Breakdown", "views": "654K views", "published": "5 hours ago", "description": f"Comprehensive coverage of {query} developments..."},
+            {"title": f"Conservative Response to {query} - Must Watch", "channel": "Conservative Voices", "views": "389K views", "published": "8 hours ago", "description": f"Conservative perspective on {query}..."},
+            {"title": f"DEBUNKED: Fact-Checking Claims About {query}", "channel": "Fact Check Network", "views": "267K views", "published": "6 hours ago", "description": f"Separating fact from fiction regarding {query}..."}
         ]
+        st.info(f"📺 Showing sample search results for '{query}' (Add YouTube API key for live search)")
         return sample_results
     
     try:
@@ -547,13 +560,20 @@ def search_youtube_videos(query, api_key=None, max_results=10):
                 }
                 search_results.append(video_data)
             
+            st.success(f"✅ Found live YouTube results for '{query}'")
             return search_results
+        elif response.status_code == 403:
+            st.warning("⚠️ YouTube API key invalid or quota exceeded. Showing sample results.")
+            return search_youtube_videos(query)  # Return sample data
+        elif response.status_code == 400:
+            st.warning("⚠️ YouTube API request error. Check your API key permissions.")
+            return search_youtube_videos(query)  # Return sample data
         else:
-            st.warning(f"YouTube API error: {response.status_code}")
+            st.warning(f"⚠️ YouTube API error {response.status_code}. Using sample results.")
             return search_youtube_videos(query)  # Return sample data
             
     except Exception as e:
-        st.warning(f"YouTube search temporarily unavailable: {str(e)}")
+        st.warning(f"⚠️ YouTube search temporarily unavailable: {str(e)[:50]}... Using sample data.")
         return search_youtube_videos(query)  # Return sample data
 
 def analyze_youtube_trends_with_ai(trending_videos, creator_name, api_key):
@@ -619,20 +639,29 @@ else:
 st.sidebar.markdown("---")
 
 st.sidebar.header("🎬 YouTube API (Optional)")
-youtube_api_key = st.sidebar.text_input("YouTube API Key", type="password", placeholder="AIza...", key="youtube_api_input", help="Optional: For live YouTube data")
+youtube_api_key = st.sidebar.text_input("YouTube API Key", type="password", placeholder="AIza...", key="youtube_api_input", help="Optional: Get your key from Google Cloud Console")
 
 if youtube_api_key:
     st.sidebar.success("✅ YouTube API enabled")
+    st.sidebar.info("💡 Enable YouTube Data API v3 in Google Cloud Console")
 else:
-    st.sidebar.info("💡 YouTube API key enables live trending data")
+    st.sidebar.info("💡 Works great with sample data! Add API key for live YouTube data")
+    with st.sidebar.expander("📋 How to get YouTube API key"):
+        st.write("""
+        1. Go to Google Cloud Console
+        2. Create/select a project
+        3. Enable YouTube Data API v3
+        4. Create credentials (API Key)
+        5. Paste key above
+        """)
 
 st.sidebar.markdown("---")
 
 st.sidebar.header("⚙️ Creator Settings")
 creator_name = st.sidebar.text_input(
     "🎙️ Creator/Show",
-    value="Ben Shapiro",
-    placeholder="e.g., Ben Shapiro, Matt Walsh, Kid Rock",
+    value="Bailey Sarian",
+    placeholder="e.g., Bailey Sarian, True Crime Creator, YouTuber",
     key="creator_name_input"
 )
 
@@ -821,7 +850,7 @@ elif platform == "🌊 Reddit Analysis":
         subreddit_input = st.text_input(
             "Enter Subreddit Name",
             value=st.session_state.selected_subreddit,
-            placeholder="e.g., Conservative, Politics, Movies",
+            placeholder="e.g., TrueCrime, serialkillers, UnresolvedMysteries",
             key="main_subreddit_input"
         )
     
@@ -842,8 +871,8 @@ elif platform == "🌊 Reddit Analysis":
             if search_scope == "Specific Subreddits":
                 search_subreddits = st.multiselect(
                     "Select Subreddits",
-                    ["Conservative", "Politics", "News", "WorldNews", "PublicFreakout", "Conspiracy", "AskReddit", "Technology", "Movies", "Television"],
-                    default=["Conservative", "Politics"],
+                    ["TrueCrime", "serialkillers", "UnresolvedMysteries", "MorbidReality", "Mystery", "ColdCases", "RBI", "LetsNotMeet", "nosleep", "creepy"],
+                    default=["TrueCrime", "serialkillers"],
                     key="search_subreddits_multi"
                 )
             else:
@@ -873,12 +902,14 @@ elif platform == "🌊 Reddit Analysis":
                     else:
                         st.error(f"❌ No posts found for '{search_query}'. Try different keywords or subreddits.")
     
-    # Popular Subreddits
+    # Popular Subreddits - Most popular across all categories
     st.write("**📊 Popular Subreddits:**")
     popular_subreddits = [
-        ("Conservative", "🏛️"), ("Politics", "🗳️"), ("Movies", "🎬"), ("Television", "📺"),
-        ("News", "📰"), ("WorldNews", "🌍"), ("Technology", "💻"), ("AskReddit", "🤷"),
-        ("Conspiracy", "🕵️"), ("PublicFreakout", "😤"), ("UnpopularOpinion", "🤔")
+        ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("funny", "😂"), ("todayilearned", "🧠"),
+        ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"), ("television", "📺"),
+        ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"), ("news", "📰"),
+        ("science", "🔬"), ("politics", "🗳️"), ("relationships", "💕"), ("food", "🍕"),
+        ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"), ("photography", "📸")
     ]
     
     cols = st.columns(4)
@@ -889,39 +920,44 @@ elif platform == "🌊 Reddit Analysis":
                 st.session_state.selected_subreddit = subreddit
                 subreddit_input = subreddit
     
-    # Analysis button
-    if st.button("🔍 Analyze Subreddit", type="primary", key="analyze_main_btn"):
-        if not subreddit_input:
-            st.warning("Please enter a subreddit name")
-        else:
-            st.info(f"🔍 Analyzing r/{subreddit_input}...")
-            
-            # Determine which categories to fetch
-            if selected_category == "Hot Posts Only":
-                categories_to_fetch = [("hot", "🔥 Hot Posts")]
-            elif selected_category == "Top Posts Only":
-                categories_to_fetch = [("top", "👑 Top Posts")]
-            elif selected_category == "Rising Posts Only":
-                categories_to_fetch = [("rising", "📈 Rising Posts")]
+    # Analysis button - make it prominent and distinct
+    st.markdown("---")
+    st.markdown("### 🚀 Ready to Analyze?")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🔍 ANALYZE SUBREDDIT", type="primary", key="analyze_main_btn", use_container_width=True):
+            if not subreddit_input:
+                st.warning("Please enter a subreddit name")
             else:
-                categories_to_fetch = [("hot", "🔥 Hot Posts"), ("top", "👑 Top Posts"), ("rising", "📈 Rising Posts")]
-            
-            all_posts_found = False
-            
-            for category, category_name in categories_to_fetch:
-                with st.spinner(f"Fetching {category} posts from r/{subreddit_input}..."):
-                    posts = get_reddit_posts(subreddit_input, category, post_limit)
-                    
-                    if posts:
-                        all_posts_found = True
-                        st.subheader(f"{category_name} - r/{subreddit_input}")
-                        display_posts(posts, subreddit_input, api_key if api_key else None)
-                    else:
-                        st.error(f"❌ Could not fetch {category} posts from r/{subreddit_input}")
-            
-            if not all_posts_found:
-                st.error(f"❌ Could not fetch any posts from r/{subreddit_input}. Try a different subreddit.")
-                st.info("💡 **Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
+                st.info(f"🔍 Analyzing r/{subreddit_input}...")
+                
+                # Determine which categories to fetch
+                if selected_category == "Hot Posts Only":
+                    categories_to_fetch = [("hot", "🔥 Hot Posts")]
+                elif selected_category == "Top Posts Only":
+                    categories_to_fetch = [("top", "👑 Top Posts")]
+                elif selected_category == "Rising Posts Only":
+                    categories_to_fetch = [("rising", "📈 Rising Posts")]
+                else:
+                    categories_to_fetch = [("hot", "🔥 Hot Posts"), ("top", "👑 Top Posts"), ("rising", "📈 Rising Posts")]
+                
+                all_posts_found = False
+                
+                for category, category_name in categories_to_fetch:
+                    with st.spinner(f"Fetching {category} posts from r/{subreddit_input}..."):
+                        posts = get_reddit_posts(subreddit_input, category, post_limit)
+                        
+                        if posts:
+                            all_posts_found = True
+                            st.subheader(f"{category_name} - r/{subreddit_input}")
+                            display_posts(posts, subreddit_input, api_key if api_key else None)
+                        else:
+                            st.error(f"❌ Could not fetch {category} posts from r/{subreddit_input}")
+                
+                if not all_posts_found:
+                    st.error(f"❌ Could not fetch any posts from r/{subreddit_input}. Try a different subreddit.")
+                    st.info("💡 **Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
 
 elif platform == "💾 Saved Content":
     st.header("💾 Saved Content")
