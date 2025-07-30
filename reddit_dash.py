@@ -516,8 +516,8 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
         st.warning(f"⚠️ YouTube API temporarily unavailable: {str(e)[:50]}... Using sample data.")
         return get_youtube_trending()
 
-def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week"):
-    """Search YouTube for videos by topic/keywords with timeframe"""
+def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week", search_type="video"):
+    """Search YouTube for videos by topic/keywords with timeframe, or search by channel"""
     if not api_key:
         # Return sample search results with timeframe context
         timeframe_text = {
@@ -526,86 +526,268 @@ def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week")
             "month": "last month"
         }.get(timeframe, "recent")
         
-        sample_results = [
-            {
-                "title": f"BREAKING: Latest Analysis on {query}", 
-                "channel": "Political Commentary Pro", 
-                "views": "523K views", 
-                "published": "1 day ago", 
-                "description": f"In-depth analysis of {query} and its implications from {timeframe_text}...",
-                "video_id": "sample1",
-                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
-            },
-            {
-                "title": f"URGENT UPDATE: {query} - What You Need to Know", 
-                "channel": "News Analysis Channel", 
-                "views": "1.2M views", 
-                "published": "3 hours ago", 
-                "description": f"Breaking developments regarding {query} from {timeframe_text}...",
-                "video_id": "sample2",
-                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
-            }
-        ]
-        st.info(f"📺 Showing sample search results for '{query}' from {timeframe_text} (Configure YouTube API key for live search)")
+        if search_type == "channel":
+            sample_results = [
+                {
+                    "title": f"Latest Upload from {query}", 
+                    "channel": query, 
+                    "views": "523K views", 
+                    "published": "1 day ago", 
+                    "description": f"Recent content from {query} channel...",
+                    "video_id": "sample1",
+                    "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+                },
+                {
+                    "title": f"Popular Video from {query}", 
+                    "channel": query, 
+                    "views": "1.2M views", 
+                    "published": "3 days ago", 
+                    "description": f"Top performing content from {query}...",
+                    "video_id": "sample2",
+                    "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+                }
+            ]
+            st.info(f"📺 Showing sample videos from '{query}' channel (Configure YouTube API key for live search)")
+        else:
+            sample_results = [
+                {
+                    "title": f"BREAKING: Latest Analysis on {query}", 
+                    "channel": "Political Commentary Pro", 
+                    "views": "523K views", 
+                    "published": "1 day ago", 
+                    "description": f"In-depth analysis of {query} and its implications from {timeframe_text}...",
+                    "video_id": "sample1",
+                    "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+                },
+                {
+                    "title": f"URGENT UPDATE: {query} - What You Need to Know", 
+                    "channel": "News Analysis Channel", 
+                    "views": "1.2M views", 
+                    "published": "3 hours ago", 
+                    "description": f"Breaking developments regarding {query} from {timeframe_text}...",
+                    "video_id": "sample2",
+                    "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+                }
+            ]
+            st.info(f"📺 Showing sample search results for '{query}' from {timeframe_text} (Configure YouTube API key for live search)")
+        
         return sample_results
     
     try:
-        # Calculate publishedAfter based on timeframe
-        if timeframe == "2days":
-            published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
-        elif timeframe == "week":
-            published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
-        elif timeframe == "month":
-            published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+        if search_type == "channel":
+            # First, search for the channel
+            search_url = "https://www.googleapis.com/youtube/v3/search"
+            channel_params = {
+                'part': 'snippet',
+                'q': query,
+                'type': 'channel',
+                'maxResults': 1,
+                'key': api_key
+            }
+            
+            channel_response = requests.get(search_url, params=channel_params, timeout=15)
+            
+            if channel_response.status_code == 200:
+                channel_data = channel_response.json()
+                if channel_data.get('items'):
+                    channel_id = channel_data['items'][0]['id']['channelId']
+                    
+                    # Now get videos from this channel
+                    video_params = {
+                        'part': 'snippet',
+                        'channelId': channel_id,
+                        'type': 'video',
+                        'order': 'date',
+                        'maxResults': max_results,
+                        'key': api_key
+                    }
+                    
+                    # Add timeframe filter
+                    if timeframe == "2days":
+                        published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
+                    elif timeframe == "week":
+                        published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+                    elif timeframe == "month":
+                        published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+                    else:
+                        published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+                    
+                    video_params['publishedAfter'] = published_after
+                    
+                    video_response = requests.get(search_url, params=video_params, timeout=15)
+                    
+                    if video_response.status_code == 200:
+                        video_data = video_response.json()
+                        search_results = []
+                        
+                        for item in video_data.get('items', []):
+                            snippet = item.get('snippet', {})
+                            
+                            video_data_item = {
+                                'title': snippet.get('title', 'No title'),
+                                'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                                'published': snippet.get('publishedAt', 'Unknown'),
+                                'video_id': item.get('id', {}).get('videoId', ''),
+                                'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                                'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                            }
+                            search_results.append(video_data_item)
+                        
+                        st.success(f"✅ Found live videos from '{query}' channel from {timeframe}")
+                        return search_results
         else:
-            published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+            # Calculate publishedAfter based on timeframe
+            if timeframe == "2days":
+                published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
+            elif timeframe == "week":
+                published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+            elif timeframe == "month":
+                published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+            else:
+                published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+            
+            # YouTube API v3 search endpoint
+            url = "https://www.googleapis.com/youtube/v3/search"
+            params = {
+                'part': 'snippet',
+                'q': query,
+                'type': 'video',
+                'order': 'relevance',
+                'maxResults': max_results,
+                'key': api_key,
+                'publishedAfter': published_after
+            }
+            
+            response = requests.get(url, params=params, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                search_results = []
+                
+                for item in data.get('items', []):
+                    snippet = item.get('snippet', {})
+                    
+                    video_data = {
+                        'title': snippet.get('title', 'No title'),
+                        'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                        'published': snippet.get('publishedAt', 'Unknown'),
+                        'video_id': item.get('id', {}).get('videoId', ''),
+                        'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                        'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                    }
+                    search_results.append(video_data)
+                
+                st.success(f"✅ Found live YouTube results for '{query}' from {timeframe}")
+                return search_results
         
-        # YouTube API v3 search endpoint
-        url = "https://www.googleapis.com/youtube/v3/search"
+        # Fallback for API errors
+        if search_type == "channel":
+            st.warning("⚠️ Channel search failed. Showing sample results.")
+            return search_youtube_videos(query, search_type=search_type)
+        else:
+            st.warning("⚠️ Video search failed. Showing sample results.")
+            return search_youtube_videos(query, timeframe=timeframe)
+            
+    except Exception as e:
+        st.warning(f"⚠️ YouTube search temporarily unavailable: {str(e)[:50]}... Using sample data.")
+        return search_youtube_videos(query, timeframe=timeframe, search_type=search_type)
+
+def get_youtube_comments(video_id, api_key=None, max_results=20):
+    """Get comments from a YouTube video"""
+    if not api_key:
+        # Return sample comments
+        sample_comments = [
+            {"author": "TruthSeeker2024", "text": "This is exactly what I've been saying! Finally someone gets it.", "likes": 127},
+            {"author": "SkepticalViewer", "text": "I disagree with this take. Here's why this analysis is flawed...", "likes": 89},
+            {"author": "CasualObserver", "text": "Great breakdown! Really helps me understand the situation better.", "likes": 45},
+            {"author": "ControversialTakes", "text": "This is going to trigger so many people but it's the truth", "likes": 203},
+            {"author": "ThoughtfulCritic", "text": "While I appreciate the perspective, I think there are some nuances missing here", "likes": 67}
+        ]
+        st.info("📝 Showing sample comments (Configure YouTube API key for live comment data)")
+        return sample_comments
+    
+    try:
+        url = "https://www.googleapis.com/youtube/v3/commentThreads"
         params = {
             'part': 'snippet',
-            'q': query,
-            'type': 'video',
-            'order': 'relevance',
+            'videoId': video_id,
             'maxResults': max_results,
-            'key': api_key,
-            'publishedAfter': published_after
+            'order': 'relevance',
+            'key': api_key
         }
         
         response = requests.get(url, params=params, timeout=15)
         
         if response.status_code == 200:
             data = response.json()
-            search_results = []
+            comments = []
             
             for item in data.get('items', []):
-                snippet = item.get('snippet', {})
+                snippet = item.get('snippet', {}).get('topLevelComment', {}).get('snippet', {})
                 
-                video_data = {
-                    'title': snippet.get('title', 'No title'),
-                    'channel': snippet.get('channelTitle', 'Unknown Channel'),
-                    'published': snippet.get('publishedAt', 'Unknown'),
-                    'video_id': item.get('id', {}).get('videoId', ''),
-                    'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
-                    'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                comment_data = {
+                    'author': snippet.get('authorDisplayName', 'Unknown'),
+                    'text': snippet.get('textDisplay', 'No text'),
+                    'likes': int(snippet.get('likeCount', 0))
                 }
-                search_results.append(video_data)
+                comments.append(comment_data)
             
-            st.success(f"✅ Found live YouTube results for '{query}' from {timeframe}")
-            return search_results
+            st.success(f"✅ Retrieved {len(comments)} live comments")
+            return comments
         elif response.status_code == 403:
-            st.warning("⚠️ YouTube API key invalid or quota exceeded. Showing sample results.")
-            return search_youtube_videos(query, timeframe=timeframe)
-        elif response.status_code == 400:
-            st.warning("⚠️ YouTube API request error. Check your API key permissions.")
-            return search_youtube_videos(query, timeframe=timeframe)
+            st.warning("⚠️ Comments disabled or API quota exceeded. Showing sample comments.")
+            return get_youtube_comments(video_id)
         else:
-            st.warning(f"⚠️ YouTube API error {response.status_code}. Using sample results.")
-            return search_youtube_videos(query, timeframe=timeframe)
+            st.warning(f"⚠️ Comments API error {response.status_code}. Using sample comments.")
+            return get_youtube_comments(video_id)
             
     except Exception as e:
-        st.warning(f"⚠️ YouTube search temporarily unavailable: {str(e)[:50]}... Using sample data.")
-        return search_youtube_videos(query, timeframe=timeframe)
+        st.warning(f"⚠️ Comments temporarily unavailable: {str(e)[:50]}... Using sample data.")
+        return get_youtube_comments(video_id)
+
+def analyze_video_comments_with_ai(comments, video_title, creator_name, api_key):
+    """Analyze YouTube video comments for creator insights"""
+    if not api_key:
+        return None
+    
+    import openai
+    openai.api_key = api_key
+    
+    # Prepare top comments for analysis
+    comment_texts = []
+    for i, comment in enumerate(comments[:10], 1):
+        comment_texts.append(f"{i}. {comment['author']} ({comment['likes']} likes): {comment['text'][:150]}...")
+    
+    comments_text = "\n".join(comment_texts)
+    
+    prompt = f"""Analyze these YouTube video comments for {creator_name}'s content strategy:
+
+Video: "{video_title}"
+Top Comments:
+{comments_text}
+
+Provide analysis for {creator_name}:
+
+💭 AUDIENCE SENTIMENT: Overall mood and feelings in the comments (angry, supportive, confused, etc.)
+🔥 CONTROVERSIAL POINTS: What aspects are people most divided on?
+🎯 {creator_name.upper()} OPPORTUNITY: How {creator_name} could address these comments or create follow-up content
+📱 COMMENT THEMES: Top 3 recurring themes or talking points in the comments
+🗣️ AUDIENCE QUESTIONS: What questions are viewers asking that {creator_name} could answer?
+📊 ENGAGEMENT STRATEGY: How {creator_name} could respond to maximize engagement
+💡 CONTENT IDEAS: 2-3 video ideas based on what the audience is discussing
+
+Focus on what the audience is actually saying and how {creator_name} could use these insights."""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=800,
+            timeout=30
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Comment Analysis Error: {str(e)}"
 
 def analyze_youtube_trends_with_ai(trending_videos, creator_name, api_key):
     """Analyze YouTube trending videos for content opportunities"""
@@ -778,12 +960,14 @@ Provide {creator_name}'s reaction strategy:
     
     with tab2:
         st.subheader("🔍 YouTube Video Search")
-        st.info("💡 Search YouTube for videos by topic or keywords")
+        st.info("💡 Search YouTube for videos by topic/keywords or find videos from specific channels")
         
-        col1, col2 = st.columns([2, 1])
+        col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            search_query = st.text_input("Search YouTube:", placeholder="e.g., 'Biden speech', 'Sydney Sweeney', 'AI technology'")
+            search_query = st.text_input("Search YouTube:", placeholder="e.g., 'Biden speech', 'Sydney Sweeney', or channel name")
         with col2:
+            search_type = st.selectbox("Search Type", ["Videos by Topic", "Videos by Channel"], key="search_type")
+        with col3:
             search_timeframe = st.selectbox("Timeframe", ["Last 2 Days", "Last Week", "Last Month"], key="youtube_timeframe")
         
         # Convert timeframe to API parameter
@@ -793,13 +977,15 @@ Provide {creator_name}'s reaction strategy:
             "Last Month": "month"
         }
         timeframe_param = timeframe_map.get(search_timeframe, "week")
+        search_type_param = "channel" if search_type == "Videos by Channel" else "video"
         
         if st.button("🔍 Search Videos", key="search_youtube") and search_query:
             with st.spinner(f"🔍 Searching YouTube for '{search_query}' from {search_timeframe.lower()}..."):
-                search_results = search_youtube_videos(search_query, youtube_api_key, timeframe=timeframe_param)
+                search_results = search_youtube_videos(search_query, youtube_api_key, timeframe=timeframe_param, search_type=search_type_param)
                 
                 if search_results:
-                    st.success(f"✅ Found {len(search_results)} videos for '{search_query}' from {search_timeframe.lower()}")
+                    search_context = f"channel '{search_query}'" if search_type == "Videos by Channel" else f"'{search_query}'"
+                    st.success(f"✅ Found {len(search_results)} videos for {search_context} from {search_timeframe.lower()}")
                     
                     for i, video in enumerate(search_results, 1):
                         with st.expander(f"#{i}: {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
@@ -818,11 +1004,15 @@ Provide {creator_name}'s reaction strategy:
                             if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                                 st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                             
-                            # Creator reaction analysis for individual videos
-                            if api_key:
-                                if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
-                                    with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
-                                        reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
+                            # Action buttons
+                            col_a, col_b = st.columns(2)
+                            
+                            with col_a:
+                                # Creator reaction analysis for individual videos
+                                if api_key:
+                                    if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
+                                        with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
+                                            reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
 
 Title: {video['title']}
 Channel: {video['channel']}
@@ -838,25 +1028,52 @@ Provide {creator_name}'s reaction strategy:
 ⏰ BEST MOMENTS: Which parts of the original video to focus on for maximum impact
 📱 SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
 🎭 ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
-                                        
-                                        try:
-                                            import openai
-                                            openai.api_key = api_key
                                             
-                                            response = openai.ChatCompletion.create(
-                                                model="gpt-3.5-turbo",
-                                                messages=[{"role": "user", "content": reaction_prompt}],
-                                                max_tokens=700,
-                                                timeout=30
-                                            )
+                                            try:
+                                                import openai
+                                                openai.api_key = api_key
+                                                
+                                                response = openai.ChatCompletion.create(
+                                                    model="gpt-3.5-turbo",
+                                                    messages=[{"role": "user", "content": reaction_prompt}],
+                                                    max_tokens=700,
+                                                    timeout=30
+                                                )
+                                                
+                                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                                st.write(response.choices[0].message.content)
+                                                st.markdown('</div>', unsafe_allow_html=True)
+                                            except Exception as e:
+                                                st.error(f"AI Analysis Error: {str(e)}")
+                            
+                            with col_b:
+                                # Comment analysis
+                                if api_key and video.get('video_id'):
+                                    if st.button(f"💬 Analyze Comments", key=f"comments_{i}"):
+                                        with st.spinner(f"🤖 Analyzing comments for {creator_name}..."):
+                                            comments = get_youtube_comments(video['video_id'], youtube_api_key)
                                             
-                                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                                            st.write(response.choices[0].message.content)
-                                            st.markdown('</div>', unsafe_allow_html=True)
-                                        except Exception as e:
-                                            st.error(f"AI Analysis Error: {str(e)}")
+                                            if comments:
+                                                # Show top comments
+                                                st.write("**📝 Top Comments:**")
+                                                for j, comment in enumerate(comments[:5], 1):
+                                                    st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
+                                                
+                                                # AI analysis of comments
+                                                comment_analysis = analyze_video_comments_with_ai(comments, video['title'], creator_name, api_key)
+                                                
+                                                if comment_analysis and not comment_analysis.startswith("Comment Analysis Error"):
+                                                    st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                                    st.markdown(f"### 💬 Comment Analysis for {creator_name}")
+                                                    st.write(comment_analysis)
+                                                    st.markdown('</div>', unsafe_allow_html=True)
+                                                elif comment_analysis:
+                                                    st.error(comment_analysis)
+                                            else:
+                                                st.warning("No comments available for analysis")
                 else:
-                    st.error(f"❌ No videos found for '{search_query}' from {search_timeframe.lower()}. Try different keywords or timeframe.")
+                    search_context = f"channel '{search_query}'" if search_type == "Videos by Channel" else f"'{search_query}'"
+                    st.error(f"❌ No videos found for {search_context} from {search_timeframe.lower()}. Try different keywords or timeframe.")
 
 elif platform == "🌊 Reddit Analysis":
     st.header("🌊 Reddit Content Analysis")
