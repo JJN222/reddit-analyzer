@@ -1,4 +1,85 @@
-import streamlit as st
+with tab2:
+        st.subheader("🔍 YouTube Video Search")
+        st.info("💡 Search YouTube for videos by topic or keywords")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            search_query = st.text_input("Search YouTube:", placeholder="e.g., 'Biden speech', 'Sydney Sweeney', 'AI technology'")
+        with col2:
+            search_timeframe = st.selectbox("Timeframe", ["Last 2 Days", "Last Week", "Last Month"], key="youtube_timeframe")
+        
+        # Convert timeframe to API parameter
+        timeframe_map = {
+            "Last 2 Days": "2days",
+            "Last Week": "week", 
+            "Last Month": "month"
+        }
+        timeframe_param = timeframe_map.get(search_timeframe, "week")
+        
+        if st.button("🔍 Search Videos", key="search_youtube") and search_query:
+            with st.spinner(f"🔍 Searching YouTube for '{search_query}' from {search_timeframe.lower()}..."):
+                search_results = search_youtube_videos(search_query, youtube_api_key, timeframe=timeframe_param)
+                
+                if search_results:
+                    st.success(f"✅ Found {len(search_results)} videos for '{search_query}' from {search_timeframe.lower()}")
+                    
+                    for i, video in enumerate(search_results, 1):
+                        with st.expander(f"#{i}: {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
+                            col1, col2 = st.columns([3, 1])
+                            
+                            with col1:
+                                st.write(f"**Channel:** {video['channel']}")
+                                st.write(f"**Published:** {video['published']}")
+                                if video.get('description'):
+                                    st.write(f"**Description:** {video['description']}")
+                            
+                            with col2:
+                                if video.get('thumbnail'):
+                                    st.image(video['thumbnail'], width=80)
+                            
+                            if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
+                                st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                            
+                            # AI Analysis for individual videos - Fixed button functionality
+                            if api_key:
+                                if st.button(f"🤖 Analyze This Video", key=f"analyze_video_{search_query}_{i}"):
+                                    with st.spinner("🤖 Analyzing video for content opportunities..."):
+                                        video_prompt = f"""Analyze this YouTube video for {creator_name}'s content strategy:
+
+Title: {video['title']}
+Channel: {video['channel']}
+Description: {video.get('description', 'No description')}
+Search Context: Found when searching for "{search_query}" from {search_timeframe.lower()}
+
+Provide analysis:
+
+📝 VIDEO TOPIC: What this video is about and why it's relevant to "{search_query}"
+🎯 {creator_name.upper()} OPPORTUNITY: How {creator_name} could respond, react, or create related content
+🔥 CONTENT IDEAS: 3 specific video ideas inspired by this, considering current trends
+📱 FORMAT: Best approach (Reaction, Response, Original Take, Debate, Commentary)
+💡 UNIQUE ANGLE: What {creator_name} could add that's different from the original
+⏰ TIMING: Why this content opportunity is relevant now
+🎬 EXECUTION: Specific steps to create the content"""
+                                        
+                                        try:
+                                            import openai
+                                            openai.api_key = api_key
+                                            
+                                            response = openai.ChatCompletion.create(
+                                                model="gpt-3.5-turbo",
+                                                messages=[{"role": "user", "content": video_prompt}],
+                                                max_tokens=700,
+                                                timeout=30
+                                            )
+                                            
+                                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                            st.write(response.choices[0].message.content)
+                                            st.markdown('</div>', unsafe_allow_html=True)
+                                        except Exception as e:
+                                            st.error(f"AI Analysis Error: {str(e)}")
+                else:
+                    st.error(f"❌ No videos found for '{search_query}' from {search_timeframe.lower()}. Try different keywords or timeframe.")
+                import streamlit as st
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
@@ -453,16 +534,51 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
     if not api_key:
         # Return sample trending topics without API
         sample_trending = [
-            {"title": "BREAKING: Major Political Development Shakes Washington", "channel": "Political News Network", "views": "2.3M views", "published": "2 hours ago", "description": "Latest updates on the developing political situation..."},
-            {"title": "SHOCKING Truth About Latest Government Scandal EXPOSED", "channel": "Truth Commentary", "views": "1.8M views", "published": "4 hours ago", "description": "Deep dive investigation reveals concerning details..."},
-            {"title": "This Changes EVERYTHING - Full Analysis & Breakdown", "channel": "Conservative Analysis", "views": "956K views", "published": "1 day ago", "description": "Complete breakdown of recent events and implications..."},
-            {"title": "THEY DON'T WANT You to Know This - Hidden Truth Revealed", "channel": "Independent Investigator", "views": "743K views", "published": "6 hours ago", "description": "Uncovering facts the mainstream media won't cover..."},
-            {"title": "LIVE: Breaking News Coverage - Stay Updated", "channel": "24/7 News Stream", "views": "2.1M views", "published": "3 hours ago", "description": "Continuous coverage of developing stories..."},
-            {"title": "The REAL Story Behind Recent Events Nobody Talks About", "channel": "Alternative Media", "views": "1.2M views", "published": "8 hours ago", "description": "Alternative perspective on current events..."},
-            {"title": "Why This Matters MORE Than You Think - Deep Dive", "channel": "Political Deep Dive", "views": "892K views", "published": "12 hours ago", "description": "Analyzing the broader implications and context..."},
-            {"title": "URGENT Update: What Everyone Needs to Know RIGHT NOW", "channel": "Breaking Updates", "views": "1.5M views", "published": "5 hours ago", "description": "Critical information for staying informed..."},
-            {"title": "Conservative Leaders RESPOND to Latest Crisis", "channel": "Conservative Voices", "views": "675K views", "published": "7 hours ago", "description": "Key conservative figures weigh in on recent developments..."},
-            {"title": "DEBUNKED: Fact-Checking the Latest Claims", "channel": "Fact Check Central", "views": "534K views", "published": "9 hours ago", "description": "Separating fact from fiction in recent reports..."}
+            {
+                "title": "BREAKING: Major Political Development Shakes Washington", 
+                "channel": "Political News Network", 
+                "views": "2.3M views", 
+                "published": "2 hours ago", 
+                "description": "Latest updates on the developing political situation that could change everything...",
+                "video_id": "sample1",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            },
+            {
+                "title": "SHOCKING Truth About Latest Government Scandal EXPOSED", 
+                "channel": "Truth Commentary", 
+                "views": "1.8M views", 
+                "published": "4 hours ago", 
+                "description": "Deep dive investigation reveals concerning details about recent government actions...",
+                "video_id": "sample2",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            },
+            {
+                "title": "This Changes EVERYTHING - Full Analysis & Breakdown", 
+                "channel": "Conservative Analysis", 
+                "views": "956K views", 
+                "published": "1 day ago", 
+                "description": "Complete breakdown of recent events and their long-term implications...",
+                "video_id": "sample3",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            },
+            {
+                "title": "THEY DON'T WANT You to Know This - Hidden Truth Revealed", 
+                "channel": "Independent Investigator", 
+                "views": "743K views", 
+                "published": "6 hours ago", 
+                "description": "Uncovering facts the mainstream media won't cover about current events...",
+                "video_id": "sample4",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            },
+            {
+                "title": "LIVE: Breaking News Coverage - Stay Updated", 
+                "channel": "24/7 News Stream", 
+                "views": "2.1M views", 
+                "published": "3 hours ago", 
+                "description": "Continuous coverage of developing stories and breaking news...",
+                "video_id": "sample5",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            }
         ]
         st.info("📺 Showing sample trending videos (Configure YouTube API key for live data)")
         return sample_trending
@@ -495,7 +611,8 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
                     'views': f"{int(stats.get('viewCount', 0)):,} views" if stats.get('viewCount') else 'No views',
                     'published': snippet.get('publishedAt', 'Unknown'),
                     'video_id': item.get('id', ''),
-                    'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else ''
+                    'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                    'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
                 }
                 trending_videos.append(video_data)
             
@@ -515,23 +632,59 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
         st.warning(f"⚠️ YouTube API temporarily unavailable: {str(e)[:50]}... Using sample data.")
         return get_youtube_trending()  # Return sample data
 
-def search_youtube_videos(query, api_key=None, max_results=10):
-    """Search YouTube for videos by topic/keywords"""
+def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week"):
+    """Search YouTube for videos by topic/keywords with timeframe"""
     if not api_key:
-        # Return sample search results
+        # Return sample search results with timeframe context
+        timeframe_text = {
+            "2days": "last 2 days",
+            "week": "last week", 
+            "month": "last month"
+        }.get(timeframe, "recent")
+        
         sample_results = [
-            {"title": f"BREAKING: Latest Analysis on {query}", "channel": "Political Commentary Pro", "views": "523K views", "published": "1 day ago", "description": f"In-depth analysis of {query} and its implications..."},
-            {"title": f"URGENT UPDATE: {query} - What You Need to Know", "channel": "News Analysis Channel", "views": "1.2M views", "published": "3 hours ago", "description": f"Breaking developments regarding {query}..."},
-            {"title": f"The TRUTH About {query} They Don't Want You to Know", "channel": "Independent Analysis", "views": "876K views", "published": "2 days ago", "description": f"Uncovering the real story behind {query}..."},
-            {"title": f"Why {query} Matters More Than You Think", "channel": "Deep Dive Commentary", "views": "432K views", "published": "1 day ago", "description": f"Exploring the broader context of {query}..."},
-            {"title": f"{query}: Complete Breakdown and Analysis", "channel": "Political Breakdown", "views": "654K views", "published": "5 hours ago", "description": f"Comprehensive coverage of {query} developments..."},
-            {"title": f"Conservative Response to {query} - Must Watch", "channel": "Conservative Voices", "views": "389K views", "published": "8 hours ago", "description": f"Conservative perspective on {query}..."},
-            {"title": f"DEBUNKED: Fact-Checking Claims About {query}", "channel": "Fact Check Network", "views": "267K views", "published": "6 hours ago", "description": f"Separating fact from fiction regarding {query}..."}
+            {
+                "title": f"BREAKING: Latest Analysis on {query}", 
+                "channel": "Political Commentary Pro", 
+                "views": "523K views", 
+                "published": "1 day ago", 
+                "description": f"In-depth analysis of {query} and its implications from {timeframe_text}...",
+                "video_id": "sample1",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            },
+            {
+                "title": f"URGENT UPDATE: {query} - What You Need to Know", 
+                "channel": "News Analysis Channel", 
+                "views": "1.2M views", 
+                "published": "3 hours ago", 
+                "description": f"Breaking developments regarding {query} from {timeframe_text}...",
+                "video_id": "sample2",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            },
+            {
+                "title": f"The TRUTH About {query} They Don't Want You to Know", 
+                "channel": "Independent Analysis", 
+                "views": "876K views", 
+                "published": "2 days ago", 
+                "description": f"Uncovering the real story behind {query} from {timeframe_text}...",
+                "video_id": "sample3",
+                "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+            }
         ]
-        st.info(f"📺 Showing sample search results for '{query}' (Configure YouTube API key for live search)")
+        st.info(f"📺 Showing sample search results for '{query}' from {timeframe_text} (Configure YouTube API key for live search)")
         return sample_results
     
     try:
+        # Calculate publishedAfter based on timeframe
+        if timeframe == "2days":
+            published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
+        elif timeframe == "week":
+            published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+        elif timeframe == "month":
+            published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+        else:
+            published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+        
         # YouTube API v3 search endpoint
         url = "https://www.googleapis.com/youtube/v3/search"
         params = {
@@ -541,7 +694,7 @@ def search_youtube_videos(query, api_key=None, max_results=10):
             'order': 'relevance',
             'maxResults': max_results,
             'key': api_key,
-            'publishedAfter': (datetime.now() - timedelta(days=7)).isoformat() + 'Z'  # Last 7 days
+            'publishedAfter': published_after
         }
         
         response = requests.get(url, params=params, timeout=15)
@@ -563,21 +716,21 @@ def search_youtube_videos(query, api_key=None, max_results=10):
                 }
                 search_results.append(video_data)
             
-            st.success(f"✅ Found live YouTube results for '{query}'")
+            st.success(f"✅ Found live YouTube results for '{query}' from {timeframe}")
             return search_results
         elif response.status_code == 403:
             st.warning("⚠️ YouTube API key invalid or quota exceeded. Showing sample results.")
-            return search_youtube_videos(query)  # Return sample data
+            return search_youtube_videos(query, timeframe=timeframe)  # Return sample data
         elif response.status_code == 400:
             st.warning("⚠️ YouTube API request error. Check your API key permissions.")
-            return search_youtube_videos(query)  # Return sample data
+            return search_youtube_videos(query, timeframe=timeframe)  # Return sample data
         else:
             st.warning(f"⚠️ YouTube API error {response.status_code}. Using sample results.")
-            return search_youtube_videos(query)  # Return sample data
+            return search_youtube_videos(query, timeframe=timeframe)  # Return sample data
             
     except Exception as e:
         st.warning(f"⚠️ YouTube search temporarily unavailable: {str(e)[:50]}... Using sample data.")
-        return search_youtube_videos(query)  # Return sample data
+        return search_youtube_videos(query, timeframe=timeframe)  # Return sample data
 
 def analyze_youtube_trends_with_ai(trending_videos, creator_name, api_key):
     """Analyze YouTube trending videos for content opportunities"""
@@ -693,21 +846,65 @@ if platform == "📺 YouTube Intelligence":
                 st.success(f"✅ Found {len(trending_videos)} trending videos")
                 
                 for i, video in enumerate(trending_videos, 1):
-                    st.markdown(f"""
-                    <div class="trend-card">
-                        <strong>#{i}</strong> &nbsp;&nbsp;
-                        <span style="font-size: 1.1rem; font-weight: 500;">{video['title']}</span><br>
-                        <small style="color: #666;">by {video['channel']} • {video['views']} • {video['published']}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if video.get('video_id') and youtube_api_key:
-                        st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                    with st.expander(f"#{i}: {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
+                        col1, col2 = st.columns([3, 1])
+                        
+                        with col1:
+                            st.write(f"**Channel:** {video['channel']}")
+                            st.write(f"**Views:** {video['views']}")
+                            st.write(f"**Published:** {video['published']}")
+                            if video.get('description'):
+                                st.write(f"**Description:** {video['description']}")
+                        
+                        with col2:
+                            if video.get('thumbnail'):
+                                st.image(video['thumbnail'], width=100)
+                        
+                        # Creator reaction analysis for each video
+                        if api_key:
+                            if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
+                                with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
+                                    reaction_prompt = f"""Analyze this trending YouTube video for {creator_name}'s reaction content:
+
+Title: {video['title']}
+Channel: {video['channel']}
+Views: {video['views']}
+Description: {video.get('description', 'No description')}
+
+Provide {creator_name}'s reaction strategy:
+
+🎬 REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
+🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
+🔥 HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
+💡 OPENING HOOK: How {creator_name} should start the reaction to grab attention
+⏰ BEST MOMENTS: Which parts of the original video to focus on for maximum impact
+📱 SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
+🎭 ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+                                    
+                                    try:
+                                        import openai
+                                        openai.api_key = api_key
+                                        
+                                        response = openai.ChatCompletion.create(
+                                            model="gpt-3.5-turbo",
+                                            messages=[{"role": "user", "content": reaction_prompt}],
+                                            max_tokens=700,
+                                            timeout=30
+                                        )
+                                        
+                                        st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                        st.write(response.choices[0].message.content)
+                                        st.markdown('</div>', unsafe_allow_html=True)
+                                    except Exception as e:
+                                        st.error(f"AI Analysis Error: {str(e)}")
+                        
+                        if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
+                            st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                 
                 if api_key:
-                    st.markdown("### 🤖 AI Content Analysis")
-                    if st.button("🎯 Analyze for Content Opportunities", key="analyze_youtube_trends"):
-                        with st.spinner("🤖 Analyzing trending videos..."):
+                    st.markdown("### 🤖 Overall Trend Analysis")
+                    if st.button("🎯 Analyze All Trends for Content Opportunities", key="analyze_youtube_trends"):
+                        with st.spinner("🤖 Analyzing all trending videos..."):
                             analysis = analyze_youtube_trends_with_ai(trending_videos, creator_name, api_key)
                             
                             if analysis and not analysis.startswith("AI Analysis Error"):
@@ -790,38 +987,45 @@ Provide analysis:
     
     with tab3:
         st.subheader("🎯 AI Video Content Generator")
-        st.info("💡 Generate video content ideas for any topic")
+        st.info("💡 Generate video content ideas based on current trends and recent events")
         
         col1, col2 = st.columns([2, 1])
         with col1:
-            content_topic = st.text_input("Video Topic:", placeholder="e.g., AI, Politics, Current Events")
+            content_topic = st.text_input("Video Topic:", placeholder="e.g., AI, Politics, Sydney Sweeney, Current Events")
         with col2:
             video_style = st.selectbox("Video Style", ["Reaction", "Analysis", "Commentary", "Debate", "Breakdown", "Response"], key="video_style")
         
         if st.button("🚀 Generate Video Ideas", key="generate_video_ideas") and content_topic and api_key:
-            with st.spinner("🤖 Generating video content ideas..."):
+            with st.spinner("🤖 Generating video content ideas based on current trends..."):
                 import openai
                 openai.api_key = api_key
                 
-                prompt = f"""Create 5 YouTube video ideas for {creator_name} about "{content_topic}" in {video_style} style:
+                # Enhanced prompt that considers recent trends and controversies
+                current_date = datetime.now().strftime("%B %Y")
+                prompt = f"""Create 5 YouTube video ideas for {creator_name} about "{content_topic}" in {video_style} style for {current_date}.
+
+IMPORTANT: Consider recent trends, controversies, and viral moments related to "{content_topic}". Reference specific recent events, social media trends, or news stories that have been trending in the past 2-4 weeks.
 
 For each video idea, provide:
 
-🎬 TITLE: YouTube-optimized title (under 60 characters, clickable)
-📝 CONCEPT: 2-sentence video description
-🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely approach this
-🎥 STRUCTURE: Basic video outline (intro, main points, conclusion)
-🔥 HOOK: Opening 15 seconds to grab attention
-📊 THUMBNAIL IDEA: What the thumbnail should show
+🎬 TITLE: YouTube-optimized title (under 60 characters, clickable, trending-aware)
+📝 CONCEPT: 2-sentence video description that references current relevance
+🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely approach this, considering their personality/brand
+🔥 TRENDING HOOK: What recent event, controversy, or viral moment makes this timely
+🎥 STRUCTURE: Basic video outline (intro referencing trend, main points, conclusion)
+💡 VIRAL POTENTIAL: Why this could go viral based on current online conversations
+📊 THUMBNAIL IDEA: What the thumbnail should show to catch trending attention
 ⏰ OPTIMAL LENGTH: Recommended video duration
-💡 SERIES POTENTIAL: Could this become multiple videos?
-🎭 CALL TO ACTION: How to end the video"""
+🎭 CALL TO ACTION: How to end the video to maximize engagement
+📱 SOCIAL STRATEGY: How to promote this across platforms for maximum reach
+
+Focus on what's actually trending and controversial RIGHT NOW related to "{content_topic}". Make it feel current and timely."""
                 
                 try:
                     response = openai.ChatCompletion.create(
                         model="gpt-3.5-turbo",
                         messages=[{"role": "user", "content": prompt}],
-                        max_tokens=1200,
+                        max_tokens=1500,
                         timeout=30
                     )
                     
@@ -830,6 +1034,31 @@ For each video idea, provide:
                     st.markdown('</div>', unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"AI Analysis Error: {str(e)}")
+        
+        # Add trending topics section for inspiration
+        st.markdown("---")
+        st.markdown("### 🔥 Trending Topics for Inspiration")
+        
+        trending_topics = [
+            "Sydney Sweeney Super Bowl controversy",
+            "AI tools and creators", 
+            "Political primary results",
+            "Celebrity social media drama",
+            "Tech company layoffs",
+            "Streaming service changes",
+            "Social media platform updates",
+            "Entertainment industry strikes",
+            "Climate change activism",
+            "Cryptocurrency developments"
+        ]
+        
+        cols = st.columns(3)
+        for i, topic in enumerate(trending_topics):
+            with cols[i % 3]:
+                if st.button(f"💡 {topic}", key=f"trending_topic_{i}"):
+                    # Auto-fill the content topic input
+                    st.session_state.auto_fill_topic = topic
+                    st.rerun()
 
 elif platform == "🌊 Reddit Analysis":
     st.header("🌊 Reddit Content Analysis")
