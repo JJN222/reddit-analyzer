@@ -699,7 +699,7 @@ if platform == "📺 YouTube Intelligence":
     
     st.info("💡 **YouTube Intelligence:** Analyze trending videos and search for content opportunities. YouTube API key is optional - works with sample data too!")
     
-    tab1, tab2, tab3 = st.tabs(["🔥 Trending Videos", "🔍 Video Search", "🎯 Content Ideas"])
+    tab1, tab2 = st.tabs(["🔥 Trending Videos", "🔍 Video Search"])
     
     with tab1:
         st.subheader("🔥 What's Trending on YouTube")
@@ -818,26 +818,26 @@ Provide {creator_name}'s reaction strategy:
                             if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                                 st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                             
-                            # AI Analysis for individual videos
+                            # Creator reaction analysis for individual videos
                             if api_key:
-                                if st.button(f"🤖 Analyze This Video", key=f"analyze_video_{search_query}_{i}"):
-                                    with st.spinner("🤖 Analyzing video for content opportunities..."):
-                                        video_prompt = f"""Analyze this YouTube video for {creator_name}'s content strategy:
+                                if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
+                                    with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
+                                        reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
 
 Title: {video['title']}
 Channel: {video['channel']}
 Description: {video.get('description', 'No description')}
 Search Context: Found when searching for "{search_query}" from {search_timeframe.lower()}
 
-Provide analysis:
+Provide {creator_name}'s reaction strategy:
 
-📝 VIDEO TOPIC: What this video is about and why it's relevant to "{search_query}"
-🎯 {creator_name.upper()} OPPORTUNITY: How {creator_name} could respond, react, or create related content
-🔥 CONTENT IDEAS: 3 specific video ideas inspired by this, considering current trends
-📱 FORMAT: Best approach (Reaction, Response, Original Take, Debate, Commentary)
-💡 UNIQUE ANGLE: What {creator_name} could add that's different from the original
-⏰ TIMING: Why this content opportunity is relevant now
-🎬 EXECUTION: Specific steps to create the content"""
+🎬 REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
+🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
+🔥 HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
+💡 OPENING HOOK: How {creator_name} should start the reaction to grab attention
+⏰ BEST MOMENTS: Which parts of the original video to focus on for maximum impact
+📱 SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
+🎭 ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
                                         
                                         try:
                                             import openai
@@ -845,7 +845,7 @@ Provide analysis:
                                             
                                             response = openai.ChatCompletion.create(
                                                 model="gpt-3.5-turbo",
-                                                messages=[{"role": "user", "content": video_prompt}],
+                                                messages=[{"role": "user", "content": reaction_prompt}],
                                                 max_tokens=700,
                                                 timeout=30
                                             )
@@ -857,76 +857,6 @@ Provide analysis:
                                             st.error(f"AI Analysis Error: {str(e)}")
                 else:
                     st.error(f"❌ No videos found for '{search_query}' from {search_timeframe.lower()}. Try different keywords or timeframe.")
-    
-    with tab3:
-        st.subheader("🎯 AI Video Content Generator")
-        st.info("💡 Generate video content ideas based on current trends and recent events")
-        
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            content_topic = st.text_input("Video Topic:", placeholder="e.g., AI, Politics, Sydney Sweeney, Current Events")
-        with col2:
-            video_style = st.selectbox("Video Style", ["Reaction", "Analysis", "Commentary", "Debate", "Breakdown", "Response"], key="video_style")
-        
-        if st.button("🚀 Generate Video Ideas", key="generate_video_ideas") and content_topic and api_key:
-            with st.spinner("🤖 Generating video content ideas based on current trends..."):
-                import openai
-                openai.api_key = api_key
-                
-                # Enhanced prompt that considers recent trends and controversies
-                current_date = datetime.now().strftime("%B %Y")
-                prompt = f"""Create 5 YouTube video ideas for {creator_name} about "{content_topic}" in {video_style} style for {current_date}.
-
-IMPORTANT: Consider recent trends, controversies, and viral moments related to "{content_topic}". Reference specific recent events, social media trends, or news stories that have been trending in the past 2-4 weeks.
-
-For each video idea, provide:
-
-🎬 TITLE: YouTube-optimized title (under 60 characters, clickable, trending-aware)
-📝 CONCEPT: 2-sentence video description that references current relevance
-🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely approach this, considering their personality/brand
-🔥 TRENDING HOOK: What recent event, controversy, or viral moment makes this timely
-🎥 STRUCTURE: Basic video outline (intro referencing trend, main points, conclusion)
-💡 VIRAL POTENTIAL: Why this could go viral based on current online conversations
-📊 THUMBNAIL IDEA: What the thumbnail should show to catch trending attention
-⏰ OPTIMAL LENGTH: Recommended video duration
-🎭 CALL TO ACTION: How to end the video to maximize engagement
-📱 SOCIAL STRATEGY: How to promote this across platforms for maximum reach
-
-Focus on what's actually trending and controversial RIGHT NOW related to "{content_topic}". Make it feel current and timely."""
-                
-                try:
-                    response = openai.ChatCompletion.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": prompt}],
-                        max_tokens=1500,
-                        timeout=30
-                    )
-                    
-                    st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                    st.write(response.choices[0].message.content)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"AI Analysis Error: {str(e)}")
-        
-        # Add trending topics section for inspiration
-        st.markdown("---")
-        st.markdown("### 🔥 Trending Topics for Inspiration")
-        
-        trending_topics = [
-            "Sydney Sweeney Super Bowl controversy",
-            "AI tools and creators", 
-            "Political primary results",
-            "Celebrity social media drama",
-            "Tech company layoffs",
-            "Streaming service changes"
-        ]
-        
-        cols = st.columns(3)
-        for i, topic in enumerate(trending_topics):
-            with cols[i % 3]:
-                if st.button(f"💡 {topic}", key=f"trending_topic_{i}"):
-                    st.session_state.auto_fill_topic = topic
-                    st.rerun()
 
 elif platform == "🌊 Reddit Analysis":
     st.header("🌊 Reddit Content Analysis")
