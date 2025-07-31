@@ -1346,34 +1346,43 @@ elif platform == "🌊 Reddit Analysis":
                     with st.spinner(f"Fetching {category} posts from r/{subreddit_input}..."):
                         posts = get_reddit_posts(subreddit_input, category, post_limit)
                         
-                if posts:
-                    all_posts_found = True
-                    
-                    # Add custom CSS for wider post display
-                    st.markdown("""
-                    <style>
-                    /* Make the expander content area wider */
-                    .stExpander {
-                        max-width: 100% !important;
-                    }
-                    
-                    /* Make the container holding the posts wider */
-                    section[data-testid="stVerticalBlock"] > div:has(> .stExpander) {
-                        max-width: 100% !important;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
-                    
-                    st.subheader(f"{category_name} - r/{subreddit_input}")
-                    display_posts(posts, subreddit_input, api_key if api_key else None, creator_name)
-                
-                else:
+                        if posts:
+                            all_posts_found = True
+                            
+                            # Add custom CSS for wider post display
+                            st.markdown("""
+                            <style>
+                            /* Remove max-width constraint from the main block container for this section */
+                            div[data-testid="stVerticalBlock"] > div:has(.stExpander) {
+                                max-width: none !important;
+                                width: 100% !important;
+                            }
+
+                            /* Make expanders full width */
+                            .stExpander {
+                                width: 100% !important;
+                            }
+
+                            /* Ensure the expander details are full width */
+                            details {
+                                width: 100% !important;
+                            }
+
+                            /* Make the content inside expanders use full width */
+                            .stExpander > details > div {
+                                width: 100% !important;
+                            }
+                            </style>
+                            """, unsafe_allow_html=True)
+                            
+                            st.subheader(f"{category_name} - r/{subreddit_input}")
+                            display_posts(posts, subreddit_input, api_key if api_key else None, creator_name)
+                        else:
                             st.error(f"❌ Could not fetch {category} posts from r/{subreddit_input}")
-                
+
                 if not all_posts_found:
                     st.error(f"❌ Could not fetch any posts from r/{subreddit_input}. Try a different subreddit.")
                     st.info("💡 **Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
-
 elif platform == "💾 Saved Content":
     st.header("💾 Saved Content")
     
