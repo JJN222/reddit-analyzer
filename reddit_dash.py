@@ -1346,11 +1346,28 @@ elif platform == "🌊 Reddit Analysis":
                     with st.spinner(f"Fetching {category} posts from r/{subreddit_input}..."):
                         posts = get_reddit_posts(subreddit_input, category, post_limit)
                         
-                        if posts:
-                            all_posts_found = True
-                            st.subheader(f"{category_name} - r/{subreddit_input}")
-                            display_posts(posts, subreddit_input, api_key if api_key else None, creator_name)
-                        else:
+                if posts:
+                    all_posts_found = True
+                    
+                    # Add custom CSS for wider post display
+                    st.markdown("""
+                    <style>
+                    /* Make the expander content area wider */
+                    .stExpander {
+                        max-width: 100% !important;
+                    }
+                    
+                    /* Make the container holding the posts wider */
+                    section[data-testid="stVerticalBlock"] > div:has(> .stExpander) {
+                        max-width: 100% !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    
+                    st.subheader(f"{category_name} - r/{subreddit_input}")
+                    display_posts(posts, subreddit_input, api_key if api_key else None, creator_name)
+                
+                else:
                             st.error(f"❌ Could not fetch {category} posts from r/{subreddit_input}")
                 
                 if not all_posts_found:
