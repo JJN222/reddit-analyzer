@@ -280,6 +280,23 @@ def search_reddit_by_keywords(query, subreddits, limit=5):
     all_results.sort(key=lambda x: x['data']['score'], reverse=True)
     return all_results[:limit * 3]
 
+def calculate_trending_score(upvotes, comments, created_utc):
+    """Calculate a trending score based on upvotes, comments, and recency"""
+    # Convert created_utc to hours ago
+    hours_ago = (datetime.now() - datetime.fromtimestamp(created_utc)).total_seconds() / 3600
+    
+    # Prevent division by zero and give recent posts a boost
+    time_factor = 1 / (hours_ago + 2)  # +2 to prevent extreme values for very new posts
+    
+    # Engagement score
+    engagement = upvotes + (comments * 2)  # Comments weighted more heavily
+    
+    # Calculate trending score
+    trending_score = engagement * time_factor
+    
+    return int(trending_score)
+
+
 def analyze_with_ai(post_title, post_content, comments, api_key, creator_name, image_url=None):
     """Analyze post and comments with OpenAI"""
     if not api_key:
@@ -331,6 +348,28 @@ Important: Base your analysis on {creator_name}'s actual known personality, poli
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
 
+def generate_hashtags(title, subreddit, creator_name):
+    """Generate relevant hashtags for social media"""
+    # Clean creator name for hashtag
+    creator_tag = creator_name.replace(" ", "")
+    
+    # Extract key words from title (simple approach)
+    words = title.lower().split()
+    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'is', 'are', 'was', 'were'}
+    key_words = [w for w in words if w not in stop_words and len(w) > 3][:3]
+    
+    hashtags = [
+        f"#{creator_tag}",
+        f"#{subreddit}",
+        "#reaction",
+        "#commentary"
+    ]
+    
+    for word in key_words:
+        hashtags.append(f"#{word}")
+    
+    return " ".join(hashtags[:8])  # Limit to 8 hashtags
+
 def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
     """Display posts with analysis"""
     if not posts:
@@ -366,13 +405,16 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
         
         with st.expander(f"#{i+1}: {title[:80]}{'...' if len(title) > 80 else ''}", expanded=False):
             # Metrics
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Score", f"{score:,}")
             with col2:
                 st.metric("Comments", f"{num_comments:,}")
             with col3:
                 st.metric("Hours ago", f"{int((datetime.now() - created).total_seconds() / 3600)}")
+            with col4:
+                trending = calculate_trending_score(score, num_comments, post_data.get('created_utc', 0))
+                st.metric("🔥 Trending", f"{trending:,}")            
             
             st.write(f"**Author:** u/{author}")
             
@@ -406,24 +448,35 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                     st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
                     
                     with col2:
-                        # Export analysis as text file
+                        # Add trending score to export data
+                        trending = calculate_trending_score(score, num_comments, post_data.get('created_utc', 0))
+                        hashtags = generate_hashtags(title, subreddit, creator_name)
+
                         export_data = f"""# {creator_name} Analysis for Reddit Post
 
-                    **Post:** {title}
-                    **Subreddit:** r/{subreddit}
-                    **Score:** {score:,} upvotes
-                    **Comments:** {num_comments:,}
-                    **Author:** u/{author}
-                    **Reddit Link:** https://reddit.com{permalink}
+                        **Post:** {title}
+                        **Subreddit:** r/{subreddit}
+                        **Score:** {score:,} upvotes
+                        **Comments:** {num_comments:,}
+                        **Trending Score:** 🔥 {trending:,}
+                        **Author:** u/{author}
+                        **Reddit Link:** https://reddit.com{permalink}
+                        **Hashtags:** {hashtags}
 
-                    ## AI Analysis:
-                    {analysis}
+                        ## AI Analysis:
+                        {analysis}
 
-                    ## Post Content:
-                    {selftext[:500] if selftext else 'No text content'}
+                        ## Post Content:
+                        {selftext[:500] if selftext else 'No text content'}
 
-                    Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
-                    """
+                        Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                        """
+
+                        # Add to session state for batch export
+                        if 'analyzed_posts' not in st.session_state:
+                            st.session_state.analyzed_posts = []
+                        if export_data not in st.session_state.analyzed_posts:
+                            st.session_state.analyzed_posts.append(export_data)
                         
                         st.download_button(
                             label="📄 Export",
@@ -438,6 +491,25 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                         st.info("🖼️ Image analysis included")
                     
                     st.write(analysis)
+
+                    # Add hashtags
+                    hashtags = generate_hashtags(title, subreddit, creator_name)
+                    st.markdown(f"**#️⃣ Suggested Hashtags:** `{hashtags}`")
+
+                    # Add copy helper
+                    with st.expander("📋 Quick Copy", expanded=False):
+                        st.text_area("Hashtags:", hashtags, height=50, key=f"copy_hashtags_{post_id}_{i}")
+                        
+                        # Try to extract a hot take from the analysis
+                        if "🔥 HOT TAKE:" in analysis:
+                            hot_take_start = analysis.find("🔥 HOT TAKE:") + len("🔥 HOT TAKE:")
+                            hot_take_end = analysis.find("\n", hot_take_start)
+                            if hot_take_end != -1:
+                                hot_take = analysis[hot_take_start:hot_take_end].strip()
+                                st.text_area("Hot Take:", hot_take, height=80, key=f"copy_hot_take_{post_id}_{i}")
+
+                    
+
                     st.markdown('</div>', unsafe_allow_html=True)
                 elif analysis:
                     st.error(analysis)
@@ -1147,6 +1219,10 @@ Provide {creator_name}'s reaction strategy:
 elif platform == "🌊 Reddit Analysis":
     st.header("🌊 Reddit Content Analysis")
     
+    # Initialize batch export session state
+    if 'analyzed_posts' not in st.session_state:
+        st.session_state.analyzed_posts = []
+    
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -1223,6 +1299,19 @@ elif platform == "🌊 Reddit Analysis":
                 st.session_state.selected_subreddit = subreddit
                 subreddit_input = subreddit
     
+    # Batch export section
+    if 'analyzed_posts' in st.session_state and st.session_state.analyzed_posts:
+        col1, col2, col3 = st.columns([2, 2, 1])
+        with col3:
+            all_analyses = "\n\n" + "="*50 + "\n\n".join(st.session_state.analyzed_posts)
+            st.download_button(
+                label=f"📦 Export All ({len(st.session_state.analyzed_posts)} posts)",
+                data=all_analyses,
+                file_name=f"{creator_name}_batch_export_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                mime="text/plain",
+                help="Download all analyzed posts in one file"
+            )
+
     # Analysis button
     st.markdown("---")
     st.markdown("### 🚀 Ready to Analyze?")
