@@ -1012,15 +1012,11 @@ if platform == "📺 YouTube Intelligence":
         with col2:
             search_timeframe = st.selectbox("Timeframe", ["Last 2 Days", "Last Week", "Last Month", "Anytime"], key="youtube_timeframe")
         
-        col3, col4 = st.columns([3, 1])
-        with col3:
-            search_channel = st.text_input("Channel Name", placeholder="e.g., 'Bailey Sarian', 'MrBeast'", key="channel_input")
-        with col4:
-            if search_channel:
-                channel_timeframe = st.selectbox("Channel Timeframe", ["Last 2 Days", "Last Week", "Last Month", "All Videos"], key="channel_timeframe")
+        # Channel name input without separate timeframe
+        search_channel = st.text_input("Channel Name", placeholder="e.g., 'Bailey Sarian', 'MrBeast'", key="channel_input")
         
         video_url = st.text_input("Video URL", placeholder="e.g., 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' or just 'dQw4w9WgXcQ'", key="video_url_input")
-        
+
         # Search button
         if st.button("🔍 Search", key="search_youtube", type="primary", use_container_width=True):
             search_results = []  # Initialize search_results here
@@ -1057,13 +1053,13 @@ if platform == "📺 YouTube Intelligence":
             # Handle combined keyword + channel search
             if search_keywords and search_channel:
                 # When both are specified, search within the channel for the keywords
-                channel_timeframe_map = {
+                timeframe_map = {
                     "Last 2 Days": "2days",
                     "Last Week": "week", 
                     "Last Month": "month",
-                    "All Videos": "all"
+                    "Anytime": "all"
                 }
-                channel_time_param = channel_timeframe_map.get(channel_timeframe, "week") if 'channel_timeframe' in locals() else "week"
+                timeframe_param = timeframe_map.get(search_timeframe, "week")
                 
                 with st.spinner(f"🔍 Searching for '{search_keywords}' in channel '{search_channel}'..."):
                     # First, find the channel
@@ -1096,16 +1092,16 @@ if platform == "📺 YouTube Intelligence":
                                 }
                                 
                                 # Add timeframe filter
-                                if channel_time_param == "2days":
+                                if timeframe_param == "2days":
                                     published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
-                                elif channel_time_param == "week":
+                                elif timeframe_param == "week":
                                     published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
-                                elif channel_time_param == "month":
+                                elif timeframe_param == "month":
                                     published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
-                                elif channel_time_param != "all":
+                                elif timeframe_param != "all":
                                     published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
                                 
-                                if channel_time_param != "all":
+                                if timeframe_param != "all":
                                     video_params['publishedAfter'] = published_after
                                 
                                 video_response = requests.get(search_url, params=video_params, timeout=15)
@@ -1148,16 +1144,16 @@ if platform == "📺 YouTube Intelligence":
             
             # Search by channel only (when no keywords specified)
             elif search_channel and not search_keywords:
-                channel_timeframe_map = {
+                timeframe_map = {
                     "Last 2 Days": "2days",
                     "Last Week": "week", 
                     "Last Month": "month",
-                    "All Videos": "all"
+                    "Anytime": "all"
                 }
-                channel_time_param = channel_timeframe_map.get(channel_timeframe, "week") if 'channel_timeframe' in locals() else "week"
+                timeframe_param = timeframe_map.get(search_timeframe, "week")
                 
                 with st.spinner(f"🔍 Searching channel '{search_channel}'..."):
-                    channel_results = search_youtube_videos(search_channel, youtube_api_key, timeframe=channel_time_param, search_type="channel")
+                    channel_results = search_youtube_videos(search_channel, youtube_api_key, timeframe=timeframe_param, search_type="channel")
                     if channel_results:
                         search_results.extend(channel_results)
             
