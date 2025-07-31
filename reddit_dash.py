@@ -406,17 +406,14 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
         post_data['image_url'] = image_url
         
         with st.expander(f"#{i+1}: {title[:80]}{'...' if len(title) > 80 else ''}", expanded=False):
-            # Metrics
-            col1, col2, col3, col4 = st.columns(4)
+            # Metrics - REMOVED TRENDING SCORE
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Score", f"{score:,}")
             with col2:
                 st.metric("Comments", f"{num_comments:,}")
             with col3:
                 st.metric("Hours ago", f"{int((datetime.now() - created).total_seconds() / 3600)}")
-            with col4:
-                trending = calculate_trending_score(score, num_comments, post_data.get('created_utc', 0))
-                st.metric("🔥 Trending", f"{trending:,}")            
             
             st.write(f"**Author:** u/{author}")
             
@@ -445,49 +442,8 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                 with st.spinner("🤖 AI analyzing content..."):
                     analysis = analyze_with_ai(title, selftext, comments, api_key, creator_name, image_url if is_image else None)
                 
-                
                 if analysis and not analysis.startswith("AI Analysis Error"):
                     st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                    
-                    with col2:
-                        # Add trending score to export data
-                        trending = calculate_trending_score(score, num_comments, post_data.get('created_utc', 0))
-                        hashtags = generate_hashtags(title, subreddit, creator_name)
-
-                        export_data = f"""# {creator_name} Analysis for Reddit Post
-
-                        **Post:** {title}
-                        **Subreddit:** r/{subreddit}
-                        **Score:** {score:,} upvotes
-                        **Comments:** {num_comments:,}
-                        **Trending Score:** 🔥 {trending:,}
-                        **Author:** u/{author}
-                        **Reddit Link:** https://reddit.com{permalink}
-                        **Hashtags:** {hashtags}
-
-                        ## AI Analysis:
-                        {analysis}
-
-                        ## Post Content:
-                        {selftext[:500] if selftext else 'No text content'}
-
-                        Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
-                        """
-
-                        # Add to session state for batch export
-                        if 'analyzed_posts' not in st.session_state:
-                            st.session_state.analyzed_posts = []
-                        if export_data not in st.session_state.analyzed_posts:
-                            st.session_state.analyzed_posts.append(export_data)
-                        
-                        st.download_button(
-                            label="📄 Export",
-                            data=export_data,
-                            file_name=f"{creator_name.replace(' ', '_')}_{title[:30].replace(' ', '_')}_analysis.txt",
-                            mime="text/plain",
-                            key=f"export_{post_id}_{i}",
-                            help="Download this analysis as a text file"
-                        )
                     
                     if is_image:
                         st.info("🖼️ Image analysis included")
@@ -497,24 +453,43 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                     # Add hashtags
                     hashtags = generate_hashtags(title, subreddit, creator_name)
                     st.markdown(f"**#️⃣ Suggested Hashtags:** `{hashtags}`")
-
-                    # Add copy helper section
-                    st.markdown("**📋 Quick Copy:**")
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.text_area("Hashtags:", hashtags, height=50, key=f"copy_hashtags_{post_id}_{i}")
-
-                    with col2:
-                        # Try to extract a hot take from the analysis
-                        if "🔥 HOT TAKE:" in analysis:
-                            hot_take_start = analysis.find("🔥 HOT TAKE:") + len("🔥 HOT TAKE:")
-                            hot_take_end = analysis.find("\n", hot_take_start)
-                            if hot_take_end != -1:
-                                hot_take = analysis[hot_take_start:hot_take_end].strip()
-                                st.text_area("Hot Take:", hot_take, height=50, key=f"copy_hot_take_{post_id}_{i}")
-
                     
+                    # Export button - LEFT ALIGNED
+                    trending = calculate_trending_score(score, num_comments, post_data.get('created_utc', 0))
+                    export_data = f"""# {creator_name} Analysis for Reddit Post
+
+**Post:** {title}
+**Subreddit:** r/{subreddit}
+**Score:** {score:,} upvotes
+**Comments:** {num_comments:,}
+**Trending Score:** 🔥 {trending:,}
+**Author:** u/{author}
+**Reddit Link:** https://reddit.com{permalink}
+**Hashtags:** {hashtags}
+
+## AI Analysis:
+{analysis}
+
+## Post Content:
+{selftext[:500] if selftext else 'No text content'}
+
+Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
+"""
+
+                    # Add to session state for batch export
+                    if 'analyzed_posts' not in st.session_state:
+                        st.session_state.analyzed_posts = []
+                    if export_data not in st.session_state.analyzed_posts:
+                        st.session_state.analyzed_posts.append(export_data)
+                    
+                    st.download_button(
+                        label="📄 Export Analysis",
+                        data=export_data,
+                        file_name=f"{creator_name.replace(' ', '_')}_{title[:30].replace(' ', '_')}_analysis.txt",
+                        mime="text/plain",
+                        key=f"export_{post_id}_{i}",
+                        help="Download this analysis as a text file"
+                    )
 
                     st.markdown('</div>', unsafe_allow_html=True)
                 elif analysis:
@@ -1295,24 +1270,6 @@ elif platform == "🌊 Reddit Analysis":
                 st.session_state.should_analyze = True
                 st.session_state.subreddit_to_analyze = subreddit_input
     
-    # Popular Subreddits
-    st.write("**📊 Popular Subreddits:**")
-    popular_subreddits = [
-        ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("funny", "😂"), ("todayilearned", "🧠"),
-        ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"), ("television", "📺"),
-        ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"), ("news", "📰"),
-        ("science", "🔬"), ("politics", "🗳️"), ("relationships", "💕"), ("food", "🍕"),
-        ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"), ("photography", "📸")
-    ]
-    
-    cols = st.columns(4)
-    for i, (subreddit, emoji) in enumerate(popular_subreddits):
-        col = cols[i % 4]
-        with col:
-            if st.button(f"{emoji} {subreddit}", key=f"btn_{subreddit}_{i}"):
-                st.session_state.selected_subreddit = subreddit
-                st.rerun()
-    
     # Batch export section
     if 'analyzed_posts' in st.session_state and st.session_state.analyzed_posts:
         st.markdown("---")
@@ -1365,6 +1322,25 @@ elif platform == "🌊 Reddit Analysis":
         if not all_posts_found:
             st.error(f"❌ Could not fetch any posts from r/{subreddit_to_analyze}. Try a different subreddit.")
             st.info("💡 **Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
+    
+    # Popular Subreddits - MOVED TO BOTTOM
+    st.markdown("---")
+    st.write("**📊 Popular Subreddits:**")
+    popular_subreddits = [
+        ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("funny", "😂"), ("todayilearned", "🧠"),
+        ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"), ("television", "📺"),
+        ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"), ("news", "📰"),
+        ("science", "🔬"), ("politics", "🗳️"), ("relationships", "💕"), ("food", "🍕"),
+        ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"), ("photography", "📸")
+    ]
+    
+    cols = st.columns(4)
+    for i, (subreddit, emoji) in enumerate(popular_subreddits):
+        col = cols[i % 4]
+        with col:
+            if st.button(f"{emoji} {subreddit}", key=f"btn_{subreddit}_{i}"):
+                st.session_state.selected_subreddit = subreddit
+                st.rerun()
 
 elif platform == "💾 Saved Content":
     st.header("💾 Saved Content")
