@@ -29,7 +29,9 @@ st.markdown("""
 
 .main .block-container {
     padding-top: 1rem;
-    max-width: 1200px;
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 
 .main-header {
