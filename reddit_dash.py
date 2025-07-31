@@ -496,17 +496,21 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                     hashtags = generate_hashtags(title, subreddit, creator_name)
                     st.markdown(f"**#️⃣ Suggested Hashtags:** `{hashtags}`")
 
-                    # Add copy helper
-                    with st.expander("📋 Quick Copy", expanded=False):
+                    # Add copy helper section
+                    st.markdown("**📋 Quick Copy:**")
+                    col1, col2 = st.columns(2)
+
+                    with col1:
                         st.text_area("Hashtags:", hashtags, height=50, key=f"copy_hashtags_{post_id}_{i}")
-                        
+
+                    with col2:
                         # Try to extract a hot take from the analysis
                         if "🔥 HOT TAKE:" in analysis:
                             hot_take_start = analysis.find("🔥 HOT TAKE:") + len("🔥 HOT TAKE:")
                             hot_take_end = analysis.find("\n", hot_take_start)
                             if hot_take_end != -1:
                                 hot_take = analysis[hot_take_start:hot_take_end].strip()
-                                st.text_area("Hot Take:", hot_take, height=80, key=f"copy_hot_take_{post_id}_{i}")
+                                st.text_area("Hot Take:", hot_take, height=50, key=f"copy_hot_take_{post_id}_{i}")
 
                     
 
