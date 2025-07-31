@@ -1229,160 +1229,161 @@ elif platform == "🌊 Reddit Analysis":
     if 'analyzed_posts' not in st.session_state:
         st.session_state.analyzed_posts = []
     
-    col1, col2 = st.columns([2, 1])
+    # Add CSS at the beginning to make posts section wider
+    st.markdown("""
+    <style>
+    /* Make the main container wider for posts */
+    .main .block-container {
+        max-width: 95% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
     
-    with col1:
-        subreddit_input = st.text_input(
-            "Enter Subreddit Name",
-            value=st.session_state.selected_subreddit,
-            placeholder="e.g., TrueCrime, serialkillers, UnresolvedMysteries",
-            key="main_subreddit_input"
-        )
+    /* Keep controls section narrower */
+    div[data-testid="stHorizontalBlock"] {
+        max-width: 800px !important;
+        margin: 0 auto !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
-    # Settings
-    categories = ["Hot Posts Only", "Top Posts Only", "Rising Posts Only", "All Categories (Slower)"]
-    selected_category = st.selectbox("Post Category", categories, key="category_select")
-    post_limit = st.slider("Posts per category", 2, 10, 5, key="post_limit_slider")
-    
-    # Search functionality
-    with st.expander("🔍 Advanced Search"):
-        search_type = st.selectbox("Search Type", ["Search by Keywords", "Browse Subreddit"], key="search_type_select")
+    # Wrap controls in a container to keep them centered and narrow
+    with st.container():
+        col1, col2 = st.columns([2, 1])
         
-        if search_type == "Search by Keywords":
-            search_query = st.text_input("🔍 Search Keywords", placeholder="e.g., 'biden speech', 'trump rally'", key="keyword_search_input")
-            
-            search_scope = st.radio("Search Scope", ["All of Reddit", "Specific Subreddits"], key="search_scope_radio")
-            
-            if search_scope == "Specific Subreddits":
-                search_subreddits = st.multiselect(
-                    "Select Subreddits",
-                    ["TrueCrime", "serialkillers", "UnresolvedMysteries", "MorbidReality", "Mystery", "ColdCases", "RBI", "LetsNotMeet", "nosleep", "creepy"],
-                    default=["TrueCrime", "serialkillers"],
-                    key="search_subreddits_multi"
-                )
-            else:
-                search_subreddits = ["all"]
-            
-            if st.button("🔍 Search Reddit", key="run_search_btn") and search_query:
-                with st.spinner(f"🔍 Searching for '{search_query}'..."):
-                    search_results = search_reddit_by_keywords(search_query, search_subreddits, post_limit)
-                    
-                    if search_results:
-                        st.success(f"✅ Found {len(search_results)} posts matching '{search_query}'")
-                        
-                        # Group results by subreddit if multiple subreddits
-                        if len(search_subreddits) > 1 or search_subreddits == ["all"]:
-                            grouped_results = {}
-                            for post in search_results:
-                                subreddit = post['data']['source_subreddit']
-                                if subreddit not in grouped_results:
-                                    grouped_results[subreddit] = []
-                                grouped_results[subreddit].append(post)
-                            
-                            for subreddit, posts in grouped_results.items():
-                                st.subheader(f"📊 r/{subreddit} ({len(posts)} posts)")
-                                display_posts(posts, subreddit, api_key, creator_name)
-                        else:
-                            display_posts(search_results, search_subreddits[0], api_key, creator_name)
-                    else:
-                        st.error(f"❌ No posts found for '{search_query}'. Try different keywords or subreddits.")
-    
-    # Popular Subreddits
-    st.write("**📊 Popular Subreddits:**")
-    popular_subreddits = [
-        ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("funny", "😂"), ("todayilearned", "🧠"),
-        ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"), ("television", "📺"),
-        ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"), ("news", "📰"),
-        ("science", "🔬"), ("politics", "🗳️"), ("relationships", "💕"), ("food", "🍕"),
-        ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"), ("photography", "📸")
-    ]
-    
-    cols = st.columns(4)
-    for i, (subreddit, emoji) in enumerate(popular_subreddits):
-        col = cols[i % 4]
-        with col:
-            if st.button(f"{emoji} {subreddit}", key=f"btn_{subreddit}_{i}"):
-                st.session_state.selected_subreddit = subreddit
-                subreddit_input = subreddit
-    
-    # Batch export section
-    if 'analyzed_posts' in st.session_state and st.session_state.analyzed_posts:
-        col1, col2, col3 = st.columns([2, 2, 1])
-        with col3:
-            all_analyses = "\n\n" + "="*50 + "\n\n".join(st.session_state.analyzed_posts)
-            st.download_button(
-                label=f"📦 Export All ({len(st.session_state.analyzed_posts)} posts)",
-                data=all_analyses,
-                file_name=f"{creator_name}_batch_export_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                mime="text/plain",
-                help="Download all analyzed posts in one file"
+        with col1:
+            subreddit_input = st.text_input(
+                "Enter Subreddit Name",
+                value=st.session_state.selected_subreddit,
+                placeholder="e.g., TrueCrime, serialkillers, UnresolvedMysteries",
+                key="main_subreddit_input"
             )
-
-    # Analysis button
-    st.markdown("---")
-    st.markdown("### 🚀 Ready to Analyze?")
+        
+        # Settings
+        categories = ["Hot Posts Only", "Top Posts Only", "Rising Posts Only", "All Categories (Slower)"]
+        selected_category = st.selectbox("Post Category", categories, key="category_select")
+        post_limit = st.slider("Posts per category", 2, 10, 5, key="post_limit_slider")
     
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("🔍 ANALYZE SUBREDDIT", type="primary", key="analyze_main_btn", use_container_width=True):
-            if not subreddit_input:
-                st.warning("Please enter a subreddit name")
-            else:
-                st.info(f"🔍 Analyzing r/{subreddit_input}...")
+    # Keep search in a container too
+    with st.container():
+        # Search functionality
+        with st.expander("🔍 Advanced Search"):
+            search_type = st.selectbox("Search Type", ["Search by Keywords", "Browse Subreddit"], key="search_type_select")
+            
+            if search_type == "Search by Keywords":
+                search_query = st.text_input("🔍 Search Keywords", placeholder="e.g., 'biden speech', 'trump rally'", key="keyword_search_input")
                 
-                # Determine which categories to fetch
-                if selected_category == "Hot Posts Only":
-                    categories_to_fetch = [("hot", "🔥 Hot Posts")]
-                elif selected_category == "Top Posts Only":
-                    categories_to_fetch = [("top", "👑 Top Posts")]
-                elif selected_category == "Rising Posts Only":
-                    categories_to_fetch = [("rising", "📈 Rising Posts")]
+                search_scope = st.radio("Search Scope", ["All of Reddit", "Specific Subreddits"], key="search_scope_radio")
+                
+                if search_scope == "Specific Subreddits":
+                    search_subreddits = st.multiselect(
+                        "Select Subreddits",
+                        ["TrueCrime", "serialkillers", "UnresolvedMysteries", "MorbidReality", "Mystery", "ColdCases", "RBI", "LetsNotMeet", "nosleep", "creepy"],
+                        default=["TrueCrime", "serialkillers"],
+                        key="search_subreddits_multi"
+                    )
                 else:
-                    categories_to_fetch = [("hot", "🔥 Hot Posts"), ("top", "👑 Top Posts"), ("rising", "📈 Rising Posts")]
+                    search_subreddits = ["all"]
                 
-                all_posts_found = False
-                
-                for category, category_name in categories_to_fetch:
-                    with st.spinner(f"Fetching {category} posts from r/{subreddit_input}..."):
-                        posts = get_reddit_posts(subreddit_input, category, post_limit)
+                if st.button("🔍 Search Reddit", key="run_search_btn") and search_query:
+                    with st.spinner(f"🔍 Searching for '{search_query}'..."):
+                        search_results = search_reddit_by_keywords(search_query, search_subreddits, post_limit)
                         
-                        if posts:
-                            all_posts_found = True
+                        if search_results:
+                            st.success(f"✅ Found {len(search_results)} posts matching '{search_query}'")
                             
-                            # Add custom CSS for wider post display
-                            st.markdown("""
-                            <style>
-                            /* Remove max-width constraint from the main block container for this section */
-                            div[data-testid="stVerticalBlock"] > div:has(.stExpander) {
-                                max-width: none !important;
-                                width: 100% !important;
-                            }
-
-                            /* Make expanders full width */
-                            .stExpander {
-                                width: 100% !important;
-                            }
-
-                            /* Ensure the expander details are full width */
-                            details {
-                                width: 100% !important;
-                            }
-
-                            /* Make the content inside expanders use full width */
-                            .stExpander > details > div {
-                                width: 100% !important;
-                            }
-                            </style>
-                            """, unsafe_allow_html=True)
-                            
-                            st.subheader(f"{category_name} - r/{subreddit_input}")
-                            display_posts(posts, subreddit_input, api_key if api_key else None, creator_name)
+                            # Group results by subreddit if multiple subreddits
+                            if len(search_subreddits) > 1 or search_subreddits == ["all"]:
+                                grouped_results = {}
+                                for post in search_results:
+                                    subreddit = post['data']['source_subreddit']
+                                    if subreddit not in grouped_results:
+                                        grouped_results[subreddit] = []
+                                    grouped_results[subreddit].append(post)
+                                
+                                for subreddit, posts in grouped_results.items():
+                                    st.subheader(f"📊 r/{subreddit} ({len(posts)} posts)")
+                                    display_posts(posts, subreddit, api_key, creator_name)
+                            else:
+                                display_posts(search_results, search_subreddits[0], api_key, creator_name)
                         else:
-                            st.error(f"❌ Could not fetch {category} posts from r/{subreddit_input}")
+                            st.error(f"❌ No posts found for '{search_query}'. Try different keywords or subreddits.")
+    
+    # Keep popular subreddits centered
+    with st.container():
+        # Popular Subreddits
+        st.write("**📊 Popular Subreddits:**")
+        popular_subreddits = [
+            ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("funny", "😂"), ("todayilearned", "🧠"),
+            ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"), ("television", "📺"),
+            ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"), ("news", "📰"),
+            ("science", "🔬"), ("politics", "🗳️"), ("relationships", "💕"), ("food", "🍕"),
+            ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"), ("photography", "📸")
+        ]
+        
+        cols = st.columns(4)
+        for i, (subreddit, emoji) in enumerate(popular_subreddits):
+            col = cols[i % 4]
+            with col:
+                if st.button(f"{emoji} {subreddit}", key=f"btn_{subreddit}_{i}"):
+                    st.session_state.selected_subreddit = subreddit
+                    subreddit_input = subreddit
+        
+        # Batch export section
+        if 'analyzed_posts' in st.session_state and st.session_state.analyzed_posts:
+            col1, col2, col3 = st.columns([2, 2, 1])
+            with col3:
+                all_analyses = "\n\n" + "="*50 + "\n\n".join(st.session_state.analyzed_posts)
+                st.download_button(
+                    label=f"📦 Export All ({len(st.session_state.analyzed_posts)} posts)",
+                    data=all_analyses,
+                    file_name=f"{creator_name}_batch_export_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+                    mime="text/plain",
+                    help="Download all analyzed posts in one file"
+                )
+    
+    # Keep analyze button centered
+    with st.container():
+        # Analysis button
+        st.markdown("---")
+        st.markdown("### 🚀 Ready to Analyze?")
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🔍 ANALYZE SUBREDDIT", type="primary", key="analyze_main_btn", use_container_width=True):
+                if not subreddit_input:
+                    st.warning("Please enter a subreddit name")
+                else:
+                    st.info(f"🔍 Analyzing r/{subreddit_input}...")
+                    
+                    # Determine which categories to fetch
+                    if selected_category == "Hot Posts Only":
+                        categories_to_fetch = [("hot", "🔥 Hot Posts")]
+                    elif selected_category == "Top Posts Only":
+                        categories_to_fetch = [("top", "👑 Top Posts")]
+                    elif selected_category == "Rising Posts Only":
+                        categories_to_fetch = [("rising", "📈 Rising Posts")]
+                    else:
+                        categories_to_fetch = [("hot", "🔥 Hot Posts"), ("top", "👑 Top Posts"), ("rising", "📈 Rising Posts")]
+                    
+                    all_posts_found = False
+                    
+                    for category, category_name in categories_to_fetch:
+                        with st.spinner(f"Fetching {category} posts from r/{subreddit_input}..."):
+                            posts = get_reddit_posts(subreddit_input, category, post_limit)
+                            
+                            if posts:
+                                all_posts_found = True
+                                
+                                st.subheader(f"{category_name} - r/{subreddit_input}")
+                                display_posts(posts, subreddit_input, api_key if api_key else None, creator_name)
+                            else:
+                                st.error(f"❌ Could not fetch {category} posts from r/{subreddit_input}")
 
-                if not all_posts_found:
-                    st.error(f"❌ Could not fetch any posts from r/{subreddit_input}. Try a different subreddit.")
-                    st.info("💡 **Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
+                    if not all_posts_found:
+                        st.error(f"❌ Could not fetch any posts from r/{subreddit_input}. Try a different subreddit.")
+                        st.info("💡 **Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
+
 elif platform == "💾 Saved Content":
     st.header("💾 Saved Content")
     
