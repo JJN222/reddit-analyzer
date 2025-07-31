@@ -1054,8 +1054,84 @@ if platform == "📺 YouTube Intelligence":
                             "thumbnail": f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
                         })
             
-            # Search by keywords
-            if search_keywords:
+            # Handle combined keyword + channel search
+            if search_keywords and search_channel:
+                # When both are specified, search within the channel for the keywords
+                channel_timeframe_map = {
+                    "Last 2 Days": "2days",
+                    "Last Week": "week", 
+                    "Last Month": "month",
+                    "All Videos": "all"
+                }
+                channel_time_param = channel_timeframe_map.get(channel_timeframe, "week") if 'channel_timeframe' in locals() else "week"
+                
+                with st.spinner(f"🔍 Searching for '{search_keywords}' in channel '{search_channel}'..."):
+                    # First, find the channel
+                    search_url = "https://www.googleapis.com/youtube/v3/search"
+                    channel_params = {
+                        'part': 'snippet',
+                        'q': search_channel,
+                        'type': 'channel',
+                        'maxResults': 1,
+                        'key': youtube_api_key
+                    }
+                    
+                    try:
+                        channel_response = requests.get(search_url, params=channel_params, timeout=15)
+                        
+                        if channel_response.status_code == 200:
+                            channel_data = channel_response.json()
+                            if channel_data.get('items'):
+                                channel_id = channel_data['items'][0]['id']['channelId']
+                                
+                                # Now search for keywords within this channel
+                                video_params = {
+                                    'part': 'snippet',
+                                    'channelId': channel_id,
+                                    'q': search_keywords,  # Add keyword search within the channel
+                                    'type': 'video',
+                                    'order': 'relevance',
+                                    'maxResults': 10,
+                                    'key': youtube_api_key
+                                }
+                                
+                                # Add timeframe filter
+                                if channel_time_param == "2days":
+                                    published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
+                                elif channel_time_param == "week":
+                                    published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+                                elif channel_time_param == "month":
+                                    published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+                                elif channel_time_param != "all":
+                                    published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+                                
+                                if channel_time_param != "all":
+                                    video_params['publishedAfter'] = published_after
+                                
+                                video_response = requests.get(search_url, params=video_params, timeout=15)
+                                
+                                if video_response.status_code == 200:
+                                    video_data = video_response.json()
+                                    
+                                    for item in video_data.get('items', []):
+                                        snippet = item.get('snippet', {})
+                                        
+                                        video_data_item = {
+                                            'title': snippet.get('title', 'No title'),
+                                            'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                                            'published': snippet.get('publishedAt', 'Unknown'),
+                                            'video_id': item.get('id', {}).get('videoId', ''),
+                                            'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                                            'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                                        }
+                                        search_results.append(video_data_item)
+                                    
+                                    st.success(f"✅ Found videos matching '{search_keywords}' in '{search_channel}' channel")
+                    except Exception as e:
+                        st.warning(f"⚠️ Combined search failed: {str(e)[:50]}...")
+            
+            # Search by keywords only (when no channel specified)
+            elif search_keywords and not search_channel:
                 # Convert timeframe to API parameter
                 timeframe_map = {
                     "Last 2 Days": "2days",
@@ -1070,8 +1146,8 @@ if platform == "📺 YouTube Intelligence":
                     if keyword_results:
                         search_results.extend(keyword_results)
             
-            # Search by channel
-            if search_channel:
+            # Search by channel only (when no keywords specified)
+            elif search_channel and not search_keywords:
                 channel_timeframe_map = {
                     "Last 2 Days": "2days",
                     "Last Week": "week", 
@@ -1099,7 +1175,7 @@ if platform == "📺 YouTube Intelligence":
                 st.success(f"✅ Found {len(unique_results)} unique videos")
             else:
                 st.error("❌ No results found. Try different search criteria.")
-        
+
         # Display search results if they exist in session state
         if 'youtube_search_results' in st.session_state and st.session_state.youtube_search_results:
             search_results = st.session_state.youtube_search_results
@@ -1288,7 +1364,7 @@ Provide {creator_name}'s reaction strategy:
 
                         if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                                            
+
 elif platform == "🌊 Reddit Analysis":
     st.header("🌊 Reddit Content Analysis")
     
