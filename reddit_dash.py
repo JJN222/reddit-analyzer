@@ -1157,8 +1157,8 @@ def get_trending_searches(region='united_states'):
     try:
         from pytrends.request import TrendReq
         
-        # Initialize pytrends with retries and timeout
-        pytrends = TrendReq(hl='en-US', tz=360, timeout=(10, 25), retries=2, backoff_factor=0.1)
+        # Initialize pytrends without the problematic parameters
+        pytrends = TrendReq(hl='en-US', tz=360)
         
         # Get trending searches
         trending_df = pytrends.trending_searches(pn=region)
@@ -1169,20 +1169,8 @@ def get_trending_searches(region='united_states'):
         return trending_searches
     except Exception as e:
         st.warning(f"⚠️ Could not fetch live trends: {str(e)}")
-        # Return sample trends as fallback
-        return [
-            "Taylor Swift Eras Tour",
-            "Presidential Election 2024",
-            "ChatGPT Update",
-            "Super Bowl 2025",
-            "iPhone 16 Release",
-            "Climate Summit",
-            "Stock Market Today",
-            "Netflix New Shows",
-            "NBA Playoffs",
-            "Breaking News Today"
-        ]
-    
+
+        
 def get_related_queries(keyword, region='US'):
     """Get related queries for a specific trend"""
     try:
@@ -1210,8 +1198,9 @@ def get_related_queries(keyword, region='US'):
         
         return related_data
     except Exception as e:
+        # Return proper dictionary structure on error
         return {'top': [], 'rising': []}
-
+    
 def analyze_trend_for_creator(trend, related_queries, creator_name, api_key):
     """Analyze how a creator should cover a trending topic"""
     if not api_key:
