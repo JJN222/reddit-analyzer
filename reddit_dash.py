@@ -1168,11 +1168,11 @@ st.sidebar.markdown("---")
 
 st.sidebar.markdown("""
 <h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
-  ⚙️ Creator <span style="color: #BCE5F7;">Settings</span>
+  Creator <span style="color: #BCE5F7;">Settings</span>
 </h2>
 """, unsafe_allow_html=True)
 creator_name = st.sidebar.text_input(
-  "🎙️ Creator/Show",
+  "Creator/Show",
   value="Bailey Sarian",
   placeholder="e.g., Bailey Sarian, True Crime Creator, YouTuber",
   key="creator_name_input"
@@ -1873,7 +1873,7 @@ elif platform == "Saved Content":
     
     # Display by creator
     for creator, posts in creators.items():
-      with st.expander(f"🎙️ {creator} ({len(posts)} posts)", expanded=True):
+      with st.expander(f"{creator} ({len(posts)} posts)", expanded=True):
         for i, post in enumerate(posts):
           col1, col2, col3 = st.columns([3, 1, 1])
           
