@@ -504,7 +504,7 @@ SUMMARY: What this post is really about (1-2 sentences)
 
 COMMENTER SENTIMENT: How the commenters in this thread are feeling (angry, excited, confused, etc.)
 
-📰 NEWS CONTEXT: Connect this to current events, trending topics, or recent news stories
+NEWS CONTEXT: Connect this to current events, trending topics, or recent news stories
 
 NORMAL TAKE: What {creator_name} would typically say about this topic, based on their known positions and style
 
@@ -512,7 +512,7 @@ HOT TAKE: {creator_name}'s most provocative, exaggerated take designed for viral
 
 SOCIAL CONTENT: Specific YouTube titles and social media content ideas that {creator_name} would actually use
 
-⚠️ CONTROVERSY LEVEL: How polarizing this content would be for {creator_name} (1-10 scale)
+CONTROVERSY LEVEL: How polarizing this content would be for {creator_name} (1-10 scale)
 
 Important: Base your analysis on {creator_name}'s actual known personality, political positions, and communication style."""
 
@@ -644,7 +644,7 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
 
           # Add hashtags
           hashtags = generate_hashtags(title, subreddit, creator_name)
-          st.markdown(f"**#️⃣ Suggested Hashtags:** `{hashtags}`")
+          st.markdown(f"**Suggested Hashtags:** `{hashtags}`")
           
           # Export button - LEFT ALIGNED
           trending = calculate_trending_score(score, num_comments, post_data.get('created_utc', 0))
