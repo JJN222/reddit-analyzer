@@ -1157,19 +1157,22 @@ def get_trending_searches(region='united_states'):
     try:
         from pytrends.request import TrendReq
         
-        # Initialize pytrends without the problematic parameters
+        # Initialize pytrends
         pytrends = TrendReq(hl='en-US', tz=360)
         
         # Get trending searches
         trending_df = pytrends.trending_searches(pn=region)
         
         # Convert to list
-        trending_searches = trending_df[0].tolist()[:20]  # Top 20 trends
-        
-        return trending_searches
+        if trending_df is not None and not trending_df.empty:
+            trending_searches = trending_df[0].tolist()[:20]
+            return trending_searches
+        else:
+            return None
+            
     except Exception as e:
-        st.warning(f"⚠️ Could not fetch live trends: {str(e)}")
-
+        st.error(f"❌ Google Trends API Error: {str(e)}")
+        return None
         
 def get_related_queries(keyword, region='US'):
     """Get related queries for a specific trend"""
@@ -1198,9 +1201,9 @@ def get_related_queries(keyword, region='US'):
         
         return related_data
     except Exception as e:
-        # Return proper dictionary structure on error
+        st.error(f"❌ Could not fetch related queries: {str(e)}")
         return {'top': [], 'rising': []}
-    
+        
 def analyze_trend_for_creator(trend, related_queries, creator_name, api_key):
     """Analyze how a creator should cover a trending topic"""
     if not api_key:
@@ -1824,11 +1827,10 @@ elif platform == "Google Trends Analysis":
             "Mexico": "mexico"
         }
         
-        # Fix: Use a different key for the selectbox
         selected_region_name = st.selectbox(
             "SELECT REGION",
             list(region_map.keys()),
-            key="trend_region_select"  # Changed key name
+            key="trend_region_select"
         )
         selected_region = region_map[selected_region_name]
     
@@ -1843,20 +1845,27 @@ elif platform == "Google Trends Analysis":
     if 'trending_searches' not in st.session_state or st.button("Get Trending Now", key="get_trends_btn", type="primary", use_container_width=True):
         with st.spinner(f"🔍 Fetching trending searches in {selected_region_name}..."):
             trending = get_trending_searches(selected_region)
-            st.session_state.trending_searches = trending
-            st.session_state.trend_region_name = selected_region_name  # Store with different key
+            if trending:
+                st.session_state.trending_searches = trending
+                st.session_state.trend_region_name = selected_region_name
+            else:
+                # Clear session state if fetch failed
+                if 'trending_searches' in st.session_state:
+                    del st.session_state.trending_searches
+                st.error("❌ Unable to fetch Google Trends data. This typically occurs due to API rate limiting or regional restrictions.")
+                st.info("💡 Google Trends has strict rate limits. Try again in a few minutes or consider using a VPN.")
     
-    # Display trends
-    if 'trending_searches' in st.session_state:
+    # Display trends only if we have data
+    if 'trending_searches' in st.session_state and st.session_state.trending_searches:
         st.success(f"✅ Top trending searches in {st.session_state.get('trend_region_name', selected_region_name)}")
-                
+        
         # Create tabs for organization
         tab1, tab2 = st.tabs(["TRENDING NOW", "ANALYSIS HISTORY"])
         
         with tab1:
             for i, trend in enumerate(st.session_state.trending_searches, 1):
                 with st.expander(f"{i:02d} | 🔥 {trend}", expanded=False):
-                    # Trend metrics mockup
+                    # ... rest of your expander code remains the same                    # Trend metrics mockup
                     st.markdown(f"""
                     <div style="display: flex; gap: 3rem; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
                         <div style="text-align: center;">
