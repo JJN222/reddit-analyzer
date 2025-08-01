@@ -288,7 +288,7 @@ p, .stMarkdown {
 # Enhanced Header with new design
 st.markdown("""
 <div class="hero-section">
-    <h1 class="hero-headline">Content<br>Intelligence<br><span class="accent">Amplified.</span></h1>
+    <h1 class="hero-headline">Shorthand<br>Studios<br><span class="accent">Amplified.</span></h1>
     <p class="tagline">Transform trending conversations into compelling content with AI-powered insights for creators and publishers.</p>
 </div>
 """, unsafe_allow_html=True)
@@ -1161,22 +1161,22 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
     "📊 Choose Platform",
-    ["🌊 Reddit Analysis", "📺 YouTube Intelligence"],
+    ["🌊 Reddit", "📺 YouTube"],
     key="platform_select"
 )
 
 st.sidebar.markdown("---")
 
-st.sidebar.header("⚙️ Creator Settings")
-creator_name = st.sidebar.text_input(
+st.sidebar.markdown("""
+<h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
+    ⚙️ Creator <span style="color: #BCE5F7;">Settings</span>
+</h2>
+""", unsafe_allow_html=True)creator_name = st.sidebar.text_input(
     "🎙️ Creator/Show",
     value="Bailey Sarian",
     placeholder="e.g., Bailey Sarian, True Crime Creator, YouTuber",
     key="creator_name_input"
 )
-
-st.sidebar.markdown("---")
-
 
 st.sidebar.markdown("---")
 
@@ -1197,12 +1197,12 @@ with st.sidebar.expander("🔑 API Status", expanded=False):
 
 # ============ MAIN CONTENT ============
 
-if platform == "📺 YouTube Intelligence":
+if platform == "📺 YouTube":
     # Hero-style header
     st.markdown("""
     <div style="margin-bottom: 4rem;">
         <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
-            YouTube Intelligence <span style="color: #BCE5F7;">Center</span>
+            YouTube <span style="color: #BCE5F7;">Center</span>
         </h1>
         <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
             Discover trending content, analyze audience sentiment, and generate data-driven content strategies.
@@ -1660,7 +1660,7 @@ Provide {creator_name}'s reaction strategy:
                         if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
 
-elif platform == "🌊 Reddit Analysis":
+elif platform == "🌊 Reddit":
     # Hero-style header
     st.markdown("""
     <div style="margin-bottom: 4rem;">
