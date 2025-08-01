@@ -1157,8 +1157,8 @@ def get_trending_searches(region='united_states'):
     try:
         from pytrends.request import TrendReq
         
-        # Initialize pytrends
-        pytrends = TrendReq(hl='en-US', tz=360)
+        # Initialize pytrends with retries and timeout
+        pytrends = TrendReq(hl='en-US', tz=360, timeout=(10, 25), retries=2, backoff_factor=0.1)
         
         # Get trending searches
         trending_df = pytrends.trending_searches(pn=region)
@@ -1182,7 +1182,7 @@ def get_trending_searches(region='united_states'):
             "NBA Playoffs",
             "Breaking News Today"
         ]
-
+    
 def get_related_queries(keyword, region='US'):
     """Get related queries for a specific trend"""
     try:
@@ -1835,10 +1835,11 @@ elif platform == "Google Trends Analysis":
             "Mexico": "mexico"
         }
         
+        # Fix: Use a different key for the selectbox
         selected_region_name = st.selectbox(
             "SELECT REGION",
             list(region_map.keys()),
-            key="trend_region"
+            key="trend_region_select"  # Changed key name
         )
         selected_region = region_map[selected_region_name]
     
@@ -1854,12 +1855,12 @@ elif platform == "Google Trends Analysis":
         with st.spinner(f"🔍 Fetching trending searches in {selected_region_name}..."):
             trending = get_trending_searches(selected_region)
             st.session_state.trending_searches = trending
-            st.session_state.trend_region = selected_region_name
+            st.session_state.trend_region_name = selected_region_name  # Store with different key
     
     # Display trends
     if 'trending_searches' in st.session_state:
-        st.success(f"✅ Top trending searches in {st.session_state.get('trend_region', 'your region')}")
-        
+        st.success(f"✅ Top trending searches in {st.session_state.get('trend_region_name', selected_region_name)}")
+                
         # Create tabs for organization
         tab1, tab2 = st.tabs(["TRENDING NOW", "ANALYSIS HISTORY"])
         
