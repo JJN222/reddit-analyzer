@@ -9,7 +9,6 @@ import os
 # Configure Streamlit page
 st.set_page_config(
   page_title="Shorthand Studios - Content Intelligence Platform",
-  page_icon="🎯",
   layout="wide"
 )
 
@@ -501,17 +500,17 @@ def analyze_with_ai(post_title, post_content, comments, api_key, creator_name, i
 
 Provide analysis in this format:
 
-📝 SUMMARY: What this post is really about (1-2 sentences)
+SUMMARY: What this post is really about (1-2 sentences)
 
-💭 COMMENTER SENTIMENT: How the commenters in this thread are feeling (angry, excited, confused, etc.)
+COMMENTER SENTIMENT: How the commenters in this thread are feeling (angry, excited, confused, etc.)
 
 📰 NEWS CONTEXT: Connect this to current events, trending topics, or recent news stories
 
-📊 NORMAL TAKE: What {creator_name} would typically say about this topic, based on their known positions and style
+NORMAL TAKE: What {creator_name} would typically say about this topic, based on their known positions and style
 
-🔥 HOT TAKE: {creator_name}'s most provocative, exaggerated take designed for viral content - stay true to their personality but make it bold and shareable
+HOT TAKE: {creator_name}'s most provocative, exaggerated take designed for viral content - stay true to their personality but make it bold and shareable
 
-📱 SOCIAL CONTENT: Specific YouTube titles and social media content ideas that {creator_name} would actually use
+SOCIAL CONTENT: Specific YouTube titles and social media content ideas that {creator_name} would actually use
 
 ⚠️ CONTROVERSY LEVEL: How polarizing this content would be for {creator_name} (1-10 scale)
 
@@ -639,7 +638,7 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
           """, unsafe_allow_html=True)
           
           if is_image:
-            st.info("🖼️ Image analysis included")
+            st.info("Image analysis included")
           
           st.write(analysis)
 
@@ -655,7 +654,7 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
 **Subreddit:** r/{subreddit}
 **Score:** {score:,} upvotes
 **Comments:** {num_comments:,}
-**Trending Score:** 🔥 {trending:,}
+**Trending Score:** {trending:,}
 **Author:** u/{author}
 **Reddit Link:** https://reddit.com{permalink}
 **Hashtags:** {hashtags}
@@ -735,7 +734,7 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
         "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
       }
     ]
-    st.info("📺 Showing sample trending videos (Configure YouTube API key for live data)")
+    st.info("Showing sample trending videos (Configure YouTube API key for live data)")
     return sample_trending
   
   try:
@@ -818,7 +817,7 @@ def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week",
           "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
         }
       ]
-      st.info(f"📺 Showing sample videos from '{query}' channel (Configure YouTube API key for live search)")
+      st.info(f"Showing sample videos from '{query}' channel (Configure YouTube API key for live search)")
     else:
       sample_results = [
         {
@@ -840,7 +839,7 @@ def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week",
           "thumbnail": "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
         }
       ]
-      st.info(f"📺 Showing sample search results for '{query}' from {timeframe_text} (Configure YouTube API key for live search)")
+      st.info(f"Showing sample search results for '{query}' from {timeframe_text} (Configure YouTube API key for live search)")
     
     return sample_results
   
@@ -974,7 +973,7 @@ def get_youtube_comments(video_id, api_key=None, max_results=20):
       {"author": "ControversialTakes", "text": "This is going to trigger so many people but it's the truth", "likes": 203},
       {"author": "ThoughtfulCritic", "text": "While I appreciate the perspective, I think there are some nuances missing here", "likes": 67}
     ]
-    st.info("📝 Showing sample comments (Configure YouTube API key for live comment data)")
+    st.info("Showing sample comments (Configure YouTube API key for live comment data)")
     return sample_comments
   
   try:
@@ -1090,13 +1089,13 @@ Top Comments:
 
 Provide analysis for {creator_name}:
 
-💭 AUDIENCE SENTIMENT: Overall mood and feelings in the comments (angry, supportive, confused, etc.)
-🔥 CONTROVERSIAL POINTS: What aspects are people most divided on?
-🎯 {creator_name.upper()} OPPORTUNITY: How {creator_name} could address these comments or create follow-up content
-📱 COMMENT THEMES: Top 3 recurring themes or talking points in the comments
-🗣️ AUDIENCE QUESTIONS: What questions are viewers asking that {creator_name} could answer?
-📊 ENGAGEMENT STRATEGY: How {creator_name} could respond to maximize engagement
-💡 CONTENT IDEAS: 2-3 video ideas based on what the audience is discussing
+AUDIENCE SENTIMENT: Overall mood and feelings in the comments (angry, supportive, confused, etc.)
+CONTROVERSIAL POINTS: What aspects are people most divided on?
+{creator_name.upper()} OPPORTUNITY: How {creator_name} could address these comments or create follow-up content
+COMMENT THEMES: Top 3 recurring themes or talking points in the comments
+AUDIENCE QUESTIONS: What questions are viewers asking that {creator_name} could answer?
+ENGAGEMENT STRATEGY: How {creator_name} could respond to maximize engagement
+CONTENT IDEAS: 2-3 video ideas based on what the audience is discussing
 
 Focus on what the audience is actually saying and how {creator_name} could use these insights."""
   
@@ -1132,13 +1131,13 @@ def analyze_youtube_trends_with_ai(trending_videos, creator_name, api_key):
 
 For the top 3 most relevant trends, provide:
 
-📺 TRENDING VIDEO TOPIC: [Main topic/theme]
-🎯 {creator_name.upper()} ANGLE: How {creator_name} could respond, react, or create similar content
-🔥 CONTENT IDEA: Specific video title for {creator_name}'s channel
-📱 FORMAT: Best format (Reaction, Analysis, Response, Original Take)
-⏰ URGENCY: How time-sensitive this trend is (1-10)
-💡 HOOK: Opening line or angle to grab attention
-🎬 SERIES POTENTIAL: Could this become multiple videos?"""
+TRENDING VIDEO TOPIC: [Main topic/theme]
+{creator_name.upper()} ANGLE: How {creator_name} could respond, react, or create similar content
+CONTENT IDEA: Specific video title for {creator_name}'s channel
+FORMAT: Best format (Reaction, Analysis, Response, Original Take)
+URGENCY: How time-sensitive this trend is (1-10)
+HOOK: Opening line or angle to grab attention
+SERIES POTENTIAL: Could this become multiple videos?"""
   
   try:
     response = openai.ChatCompletion.create(
@@ -1160,8 +1159,8 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 
 platform = st.sidebar.selectbox(
-  "📊 Choose Platform",
-  ["🌊 Reddit Analysis", "📺 YouTube Intelligence"],
+  "Choose Platform",
+  ["Reddit Analysis", "YouTube Intelligence"],
   key="platform_select"
 )
 
@@ -1194,11 +1193,11 @@ with st.sidebar.expander("🔑 API Status", expanded=False):
   if youtube_api_key:
     st.success("✅ YouTube live data enabled")
   else:
-    st.info("📺 Using sample data")
+    st.info("Using sample data")
 
 # ============ MAIN CONTENT ============
 
-if platform == "📺 YouTube Intelligence":
+if platform == "YouTube Intelligence":
   # Hero-style header
   st.markdown("""
   <div style="margin-bottom: 4rem;">
@@ -1474,7 +1473,7 @@ if platform == "📺 YouTube Intelligence":
           with col_a:
             # Creator reaction analysis for individual videos
             if api_key:
-              if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
+              if st.button(f"{creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
                 with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
                   reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
 
@@ -1484,13 +1483,13 @@ Description: {video.get('description', 'No description')}
 
 Provide {creator_name}'s reaction strategy:
 
-🎬 REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
-🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
-🔥 HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
-💡 OPENING HOOK: How {creator_name} should start the reaction to grab attention
-⏰ BEST MOMENTS: Which parts of the original video to focus on for maximum impact
-📱 SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
-🎭 ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
+{creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
+HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
+OPENING HOOK: How {creator_name} should start the reaction to grab attention
+BEST MOMENTS: Which parts of the original video to focus on for maximum impact
+SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
+ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
                   
                   try:
                     import openai
@@ -1515,7 +1514,7 @@ Provide {creator_name}'s reaction strategy:
           with col_b:
             # Comment analysis
             if api_key and video.get('video_id'):
-              if st.button(f"💬 Analyze Comments", key=f"comments_{i}"):
+              if st.button(f"Analyze Comments", key=f"comments_{i}"):
                 with st.spinner(f"🤖 Analyzing comments for {creator_name}..."):
                   comments = get_youtube_comments(video['video_id'], youtube_api_key)
                   
@@ -1539,7 +1538,7 @@ Provide {creator_name}'s reaction strategy:
               AI Analysis <span style="color: #BCE5F7;">Results</span>
             </h3>
             """, unsafe_allow_html=True)
-            st.markdown(f"### 🎯 {creator_name} Reaction Strategy")
+            st.markdown(f"### {creator_name} Reaction Strategy")
             st.write(st.session_state[f"reaction_analysis_{i}"])
             st.markdown('</div>', unsafe_allow_html=True)
           
@@ -1549,7 +1548,7 @@ Provide {creator_name}'s reaction strategy:
             
             if f"comments_data_{i}" in st.session_state:
               comments = st.session_state[f"comments_data_{i}"]
-              st.write("**📝 Top Comments:**")
+              st.write("**Top Comments:**")
               if isinstance(comments, list) and comments:
                 for j, comment in enumerate(comments[:5], 1):
                   st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
@@ -1563,18 +1562,18 @@ Provide {creator_name}'s reaction strategy:
                 AI Analysis <span style="color: #BCE5F7;">Results</span>
               </h3>
               """, unsafe_allow_html=True)
-              st.markdown(f"### 💬 Comment Analysis for {creator_name}")
+              st.markdown(f"### Comment Analysis for {creator_name}")
               st.write(analysis)
               st.markdown('</div>', unsafe_allow_html=True)
             elif analysis:
               st.error(analysis)
   
   with tab2:
-    st.subheader("🔥 What's Trending on YouTube")
+    st.subheader("What's Trending on YouTube")
     
     col1, col2 = st.columns([2, 1])
     with col1:
-      if st.button("🔄 Get Trending Videos", key="get_youtube_trending"):
+      if st.button("Get Trending Videos", key="get_youtube_trending"):
         with st.spinner("Fetching trending YouTube videos..."):
           trending_videos = get_youtube_trending(youtube_api_key)
           st.session_state.trending_videos = trending_videos
@@ -1617,7 +1616,7 @@ Provide {creator_name}'s reaction strategy:
 
             # Creator reaction analysis for each video
             if api_key:
-              if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
+              if st.button(f"{creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
                 with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
                   reaction_prompt = f"""Analyze this trending YouTube video for {creator_name}'s reaction content:
 
@@ -1628,13 +1627,13 @@ Description: {video.get('description', 'No description')}
 
 Provide {creator_name}'s reaction strategy:
 
-🎬 REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
-🎯 {creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
-🔥 HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
-💡 OPENING HOOK: How {creator_name} should start the reaction to grab attention
-⏰ BEST MOMENTS: Which parts of the original video to focus on for maximum impact
-📱 SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
-🎭 ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
+{creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
+HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
+OPENING HOOK: How {creator_name} should start the reaction to grab attention
+BEST MOMENTS: Which parts of the original video to focus on for maximum impact
+SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
+ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
                   
                   try:
                     import openai
@@ -1661,7 +1660,7 @@ Provide {creator_name}'s reaction strategy:
             if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
               st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
 
-elif platform == "🌊 Reddit Analysis":
+elif platform == "Reddit Analysis":
   # Hero-style header
   st.markdown("""
   <div style="margin-bottom: 4rem;">
@@ -1769,7 +1768,7 @@ elif platform == "🌊 Reddit Analysis":
                 grouped_results[subreddit].append(post)
               
               for subreddit, posts in grouped_results.items():
-                st.subheader(f"📊 r/{subreddit} ({len(posts)} posts)")
+                st.subheader(f"r/{subreddit} ({len(posts)} posts)")
                 display_posts(posts, subreddit, api_key, creator_name)
             else:
               display_posts(search_results, search_subreddits[0], api_key, creator_name)
@@ -1791,7 +1790,7 @@ elif platform == "🌊 Reddit Analysis":
     with col3:
       all_analyses = "\n\n" + "="*50 + "\n\n".join(st.session_state.analyzed_posts)
       st.download_button(
-        label=f"📦 Export All ({len(st.session_state.analyzed_posts)} posts)",
+        label=f"Export All ({len(st.session_state.analyzed_posts)} posts)",
         data=all_analyses,
         file_name=f"{creator_name}_batch_export_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
         mime="text/plain",
@@ -1800,7 +1799,7 @@ elif platform == "🌊 Reddit Analysis":
 
   # Post Analysis section - full width
   st.markdown("---")
-  st.markdown("### 📊 Post Analysis")
+  st.markdown("### Post Analysis")
   
   # Check if we should analyze
   if hasattr(st.session_state, 'should_analyze') and st.session_state.should_analyze:
@@ -1811,13 +1810,13 @@ elif platform == "🌊 Reddit Analysis":
     
     # Determine which categories to fetch
     if selected_category == "Hot Posts Only":
-      categories_to_fetch = [("hot", "🔥 Hot Posts")]
+      categories_to_fetch = [("hot", "Hot Posts")]
     elif selected_category == "Top Posts Only":
-      categories_to_fetch = [("top", "👑 Top Posts")]
+      categories_to_fetch = [("top", "Top Posts")]
     elif selected_category == "Rising Posts Only":
-      categories_to_fetch = [("rising", "📈 Rising Posts")]
+      categories_to_fetch = [("rising", "Rising Posts")]
     else:
-      categories_to_fetch = [("hot", "🔥 Hot Posts"), ("top", "👑 Top Posts"), ("rising", "📈 Rising Posts")]
+      categories_to_fetch = [("hot", "Hot Posts"), ("top", "Top Posts"), ("rising", "Rising Posts")]
     
     all_posts_found = False
     
@@ -1835,11 +1834,11 @@ elif platform == "🌊 Reddit Analysis":
 
     if not all_posts_found:
       st.error(f"❌ Could not fetch any posts from r/{subreddit_to_analyze}. Try a different subreddit.")
-      st.info("💡 **Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
+      st.info("**Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
   
   # Popular Subreddits - MOVED TO BOTTOM
   st.markdown("---")
-  st.write("**📊 Popular Subreddits:**")
+  st.write("**Popular Subreddits:**")
   popular_subreddits = [
     ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("funny", "😂"), ("todayilearned", "🧠"),
     ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"), ("television", "📺"),
@@ -1856,11 +1855,11 @@ elif platform == "🌊 Reddit Analysis":
         st.session_state.selected_subreddit = subreddit
         st.rerun()
 
-elif platform == "💾 Saved Content":
-  st.header("💾 Saved Content")
+elif platform == "Saved Content":
+  st.header("Saved Content")
   
   if not st.session_state.saved_posts:
-    st.info("📝 No saved posts yet. Analyze some Reddit content and save posts to get started!")
+    st.info("No saved posts yet. Analyze some Reddit content and save posts to get started!")
   else:
     st.success(f"✅ You have {len(st.session_state.saved_posts)} saved posts")
     
@@ -1891,16 +1890,16 @@ elif platform == "💾 Saved Content":
               st.session_state.saved_posts = [p for p in st.session_state.saved_posts if p['id'] != post['id']]
               st.rerun()
 
-elif platform == "🎬 Show Planner":
-  st.header("🎬 Show Planner")
+elif platform == "Show Planner":
+  st.header("Show Planner")
   
   if not st.session_state.saved_posts:
-    st.info("📝 Save some Reddit posts first to create show concepts!")
+    st.info("Save some Reddit posts first to create show concepts!")
   else:
-    tab1, tab2 = st.tabs(["➕ Create Show", "📋 My Shows"])
+    tab1, tab2 = st.tabs(["Create Show", "My Shows"])
     
     with tab1:
-      st.subheader("🎬 Create New Show Concept")
+      st.subheader("Create New Show Concept")
       
       show_title = st.text_input("Show Title", placeholder="e.g., 'Bailey Sarian True Crime Deep Dive'", key="show_title_input")
       show_creator = st.selectbox("Host/Creator", list(set([post['creator'] for post in st.session_state.saved_posts])), key="show_creator_input")
@@ -1916,9 +1915,9 @@ elif platform == "🎬 Show Planner":
       
       if selected_posts:
         estimated_duration = len(selected_posts) * 8 # 8 minutes per segment
-        st.info(f"📊 Estimated Duration: {estimated_duration} minutes ({len(selected_posts)} segments)")
+        st.info(f"Estimated Duration: {estimated_duration} minutes ({len(selected_posts)} segments)")
         
-        if st.button("🎬 Create Show Concept", key="create_show_btn") and show_title:
+        if st.button("Create Show Concept", key="create_show_btn") and show_title:
           show_concept = {
             'id': f"show_{int(time.time())}",
             'title': show_title,
@@ -1935,10 +1934,10 @@ elif platform == "🎬 Show Planner":
     
     with tab2:
       if not st.session_state.show_concepts:
-        st.info("📺 No show concepts yet. Create your first show!")
+        st.info("No show concepts yet. Create your first show!")
       else:
         for i, show in enumerate(st.session_state.show_concepts):
-          with st.expander(f"🎬 {show['title']} ({show['duration']} min)", expanded=False):
+          with st.expander(f"{show['title']} ({show['duration']} min)", expanded=False):
             col1, col2, col3 = st.columns([2, 1, 1])
             
             with col1:
@@ -1969,7 +1968,7 @@ elif platform == "🎬 Show Planner":
                   notes += "---\n\n"
                 
                 st.download_button(
-                  label="💾 Download Show Notes",
+                  label="Download Show Notes",
                   data=notes,
                   file_name=f"{show['title'].replace(' ', '_')}_show_notes.md",
                   mime="text/markdown",
