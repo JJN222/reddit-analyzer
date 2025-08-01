@@ -1149,6 +1149,125 @@ SERIES POTENTIAL: Could this become multiple videos?"""
     return response.choices[0].message.content
   except Exception as e:
     return f"AI Analysis Error: {str(e)}"
+  
+# ============ GOOGLE TRENDS FUNCTIONS ============
+
+def get_trending_searches(region='united_states'):
+    """Get current trending searches from Google Trends"""
+    try:
+        from pytrends.request import TrendReq
+        
+        # Initialize pytrends
+        pytrends = TrendReq(hl='en-US', tz=360)
+        
+        # Get trending searches
+        trending_df = pytrends.trending_searches(pn=region)
+        
+        # Convert to list
+        trending_searches = trending_df[0].tolist()[:20]  # Top 20 trends
+        
+        return trending_searches
+    except Exception as e:
+        st.warning(f"⚠️ Could not fetch live trends: {str(e)}")
+        # Return sample trends as fallback
+        return [
+            "Taylor Swift Eras Tour",
+            "Presidential Election 2024",
+            "ChatGPT Update",
+            "Super Bowl 2025",
+            "iPhone 16 Release",
+            "Climate Summit",
+            "Stock Market Today",
+            "Netflix New Shows",
+            "NBA Playoffs",
+            "Breaking News Today"
+        ]
+
+def get_related_queries(keyword, region='US'):
+    """Get related queries for a specific trend"""
+    try:
+        from pytrends.request import TrendReq
+        
+        pytrends = TrendReq(hl='en-US', tz=360)
+        
+        # Build payload
+        pytrends.build_payload([keyword], timeframe='now 7-d', geo=region)
+        
+        # Get related queries
+        related_queries = pytrends.related_queries()
+        
+        # Extract top and rising queries
+        related_data = {
+            'top': [],
+            'rising': []
+        }
+        
+        if keyword in related_queries:
+            if related_queries[keyword]['top'] is not None:
+                related_data['top'] = related_queries[keyword]['top']['query'].tolist()[:10]
+            if related_queries[keyword]['rising'] is not None:
+                related_data['rising'] = related_queries[keyword]['rising']['query'].tolist()[:10]
+        
+        return related_data
+    except Exception as e:
+        return {'top': [], 'rising': []}
+
+def analyze_trend_for_creator(trend, related_queries, creator_name, api_key):
+    """Analyze how a creator should cover a trending topic"""
+    if not api_key:
+        return None
+    
+    import openai
+    openai.api_key = api_key
+    
+    # Prepare context
+    context = f"Trending Topic: {trend}\n"
+    if related_queries['top']:
+        context += f"Top Related Searches: {', '.join(related_queries['top'][:5])}\n"
+    if related_queries['rising']:
+        context += f"Rising Related Searches: {', '.join(related_queries['rising'][:5])}\n"
+    
+    prompt = f"""Analyze this Google Trend for {creator_name}'s content strategy:
+
+{context}
+
+Provide a comprehensive content strategy for {creator_name}:
+
+📊 TREND SUMMARY: What this trend is about and why it's popular right now (2-3 sentences)
+
+🎯 {creator_name.upper()} ANGLE: How {creator_name} should approach this topic based on their personality and audience
+
+📹 VIDEO CONCEPTS: 3 specific video ideas with titles that {creator_name} could create:
+- Title 1: [Specific title]
+- Title 2: [Specific title]  
+- Title 3: [Specific title]
+
+🔥 HOT TAKE: {creator_name}'s unique, provocative perspective on this trend
+
+📱 SOCIAL MEDIA STRATEGY: How to leverage this trend across platforms:
+- YouTube Shorts idea
+- TikTok approach
+- Instagram Reels concept
+- Twitter/X thread idea
+
+⏰ TIMING: How urgent is this trend? When should {creator_name} publish content?
+
+🎪 CONTENT FORMAT: Best format for {creator_name} (reaction, analysis, story-time, investigation, etc.)
+
+#️⃣ HASHTAGS: Relevant hashtags for maximum reach
+
+💡 UNIQUE SPIN: What {creator_name} could do differently than everyone else covering this trend"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=800,
+            timeout=30
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI Analysis Error: {str(e)}"
 
 # ============ SIDEBAR CONFIGURATION ============
 
@@ -1160,7 +1279,7 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
   "Choose Platform",
-  ["Reddit Analysis", "YouTube Intelligence"],
+  ["Reddit Analysis", "YouTube Intelligence", "Google Trends Analysis"],
   key="platform_select"
 )
 
@@ -1408,7 +1527,21 @@ if platform == "YouTube Intelligence":
       search_results = st.session_state.youtube_search_results
       
       for i, video in enumerate(search_results, 1):
-        with st.expander(f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
+        expanded_key = f"expanded_video_{i}"
+        if expanded_key not in st.session_state:
+            st.session_state[expanded_key] = False
+            
+        # Check if any button for this video was clicked
+        if (f"analyze_video_{i}" in st.session_state or 
+            f"comments_{i}" in st.session_state or
+            f"reaction_analysis_{i}" in st.session_state or
+            f"comment_analysis_{i}" in st.session_state):
+            st.session_state[expanded_key] = True
+
+        with st.expander(
+            f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", 
+            expanded=st.session_state[expanded_key]
+        ):
           # Add clean metric display
           st.markdown(f"""
           <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
@@ -1588,77 +1721,279 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
         st.success(f"✅ Found {len(trending_videos)} trending videos")
         
         for i, video in enumerate(trending_videos, 1):
-          with st.expander(f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
-            # Add clean metric display for trending videos
-            st.markdown(f"""
-            <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
-              <div>
-                <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
-                <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
-              </div>
-              <div>
-                <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
-                <p style="font-size: 20px; font-weight: 600;">{video['views']}</p>
-              </div>
-              <div>
-                <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
-                <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
+            expanded_key = f"expanded_trending_{i}"
+            if expanded_key not in st.session_state:
+                st.session_state[expanded_key] = False
+                
+            # Check if button for this video was clicked
+            if f"reaction_trending_{i}" in st.session_state:
+                st.session_state[expanded_key] = True
 
-            # After the metric display HTML, add:
-            if video.get('description'):
-              st.write(f"**Description:** {video['description']}")
+            with st.expander(
+                f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", 
+                expanded=st.session_state[expanded_key]
+            ):
+                # Add clean metric display for trending videos
+                st.markdown(f"""
+                <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
+                <div>
+                    <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
+                    <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
+                </div>
+                <div>
+                    <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
+                    <p style="font-size: 20px; font-weight: 600;">{video['views']}</p>
+                </div>
+                <div>
+                    <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
+                    <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
+                </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-            if video.get('thumbnail'):
-              st.image(video['thumbnail'], width=200)
+                # After the metric display HTML, add:
+                if video.get('description'):
+                    st.write(f"**Description:** {video['description']}")
 
-            # Creator reaction analysis for each video
-            if api_key:
-              if st.button(f"{creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
-                with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
-                  reaction_prompt = f"""Analyze this trending YouTube video for {creator_name}'s reaction content:
+                if video.get('thumbnail'):
+                    st.image(video['thumbnail'], width=200)
 
-Title: {video['title']}
-Channel: {video['channel']}
-Views: {video['views']}
-Description: {video.get('description', 'No description')}
+                # Creator reaction analysis for each video
+                if api_key:
+                    if st.button(f"{creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
+                        with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
+                            reaction_prompt = f"""Analyze this trending YouTube video for {creator_name}'s reaction content:
 
-Provide {creator_name}'s reaction strategy:
+        Title: {video['title']}
+        Channel: {video['channel']}
+        Views: {video['views']}
+        Description: {video.get('description', 'No description')}
 
-REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
-{creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
-HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
-OPENING HOOK: How {creator_name} should start the reaction to grab attention
-BEST MOMENTS: Which parts of the original video to focus on for maximum impact
-SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
-ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
-                  
-                  try:
-                    import openai
-                    openai.api_key = api_key
-                    
-                    response = openai.ChatCompletion.create(
-                      model="gpt-3.5-turbo",
-                      messages=[{"role": "user", "content": reaction_prompt}],
-                      max_tokens=700,
-                      timeout=30
-                    )
-                    
-                    st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                    st.markdown("""
-                    <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-                      AI Analysis <span style="color: #BCE5F7;">Results</span>
-                    </h3>
+        Provide {creator_name}'s reaction strategy:
+
+        REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
+        {creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
+        HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
+        OPENING HOOK: How {creator_name} should start the reaction to grab attention
+        BEST MOMENTS: Which parts of the original video to focus on for maximum impact
+        SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
+        ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+                            
+                            try:
+                                import openai
+                                openai.api_key = api_key
+                                
+                                response = openai.ChatCompletion.create(
+                                    model="gpt-3.5-turbo",
+                                    messages=[{"role": "user", "content": reaction_prompt}],
+                                    max_tokens=700,
+                                    timeout=30
+                                )
+                                
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(response.choices[0].message.content)
+                                st.markdown('</div>', unsafe_allow_html=True)
+                            except Exception as e:
+                                st.error(f"AI Analysis Error: {str(e)}")
+
+                if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
+                    st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+
+elif platform == "Google Trends Analysis":
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+            Google Trends <span style="color: #BCE5F7;">Analysis</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+            Discover what's trending right now and create timely content that rides the wave of public interest.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Region selection
+    st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        region_map = {
+            "United States": "united_states",
+            "United Kingdom": "united_kingdom", 
+            "Canada": "canada",
+            "Australia": "australia",
+            "India": "india",
+            "Germany": "germany",
+            "France": "france",
+            "Japan": "japan",
+            "Brazil": "brazil",
+            "Mexico": "mexico"
+        }
+        
+        selected_region_name = st.selectbox(
+            "SELECT REGION",
+            list(region_map.keys()),
+            key="trend_region"
+        )
+        selected_region = region_map[selected_region_name]
+    
+    with col2:
+        if st.button("🔄 REFRESH TRENDS", key="refresh_trends", type="primary"):
+            if 'trending_searches' in st.session_state:
+                del st.session_state.trending_searches
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Get trending searches
+    if 'trending_searches' not in st.session_state or st.button("Get Trending Now", key="get_trends_btn", type="primary", use_container_width=True):
+        with st.spinner(f"🔍 Fetching trending searches in {selected_region_name}..."):
+            trending = get_trending_searches(selected_region)
+            st.session_state.trending_searches = trending
+            st.session_state.trend_region = selected_region_name
+    
+    # Display trends
+    if 'trending_searches' in st.session_state:
+        st.success(f"✅ Top trending searches in {st.session_state.get('trend_region', 'your region')}")
+        
+        # Create tabs for organization
+        tab1, tab2 = st.tabs(["TRENDING NOW", "ANALYSIS HISTORY"])
+        
+        with tab1:
+            for i, trend in enumerate(st.session_state.trending_searches, 1):
+                with st.expander(f"{i:02d} | 🔥 {trend}", expanded=False):
+                    # Trend metrics mockup
+                    st.markdown(f"""
+                    <div style="display: flex; gap: 3rem; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+                        <div style="text-align: center;">
+                            <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">#{i}</p>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666;">Rank</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">🔥</p>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666;">Trending</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">📈</p>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666;">Rising</p>
+                        </div>
+                    </div>
                     """, unsafe_allow_html=True)
-                    st.write(response.choices[0].message.content)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                  except Exception as e:
-                    st.error(f"AI Analysis Error: {str(e)}")
+                    
+                    # Get related queries
+                    if st.button(f"Get Related Queries", key=f"related_{i}"):
+                        with st.spinner("🔍 Fetching related searches..."):
+                            related = get_related_queries(trend, selected_region.upper()[:2])
+                            st.session_state[f"related_{i}"] = related
+                    
+                    # Display related queries if available
+                    if f"related_{i}" in st.session_state:
+                        related = st.session_state[f"related_{i}"]
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("**🔝 Top Related Searches:**")
+                            if related['top']:
+                                for query in related['top'][:5]:
+                                    st.write(f"• {query}")
+                            else:
+                                st.write("No data available")
+                        
+                        with col2:
+                            st.markdown("**📈 Rising Related Searches:**")
+                            if related['rising']:
+                                for query in related['rising'][:5]:
+                                    st.write(f"• {query}")
+                            else:
+                                st.write("No data available")
+                    
+                    # AI Analysis
+                    if api_key:
+                        if st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_trend_{i}"):
+                            with st.spinner(f"🤖 Analyzing trend for {creator_name}..."):
+                                # Get related queries if not already fetched
+                                if f"related_{i}" not in st.session_state:
+                                    related = get_related_queries(trend, selected_region.upper()[:2])
+                                else:
+                                    related = st.session_state[f"related_{i}"]
+                                
+                                analysis = analyze_trend_for_creator(trend, related, creator_name, api_key)
+                                st.session_state[f"trend_analysis_{i}"] = analysis
+                        
+                        # Display analysis if available
+                        if f"trend_analysis_{i}" in st.session_state:
+                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                            st.markdown("""
+                            <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                AI Analysis <span style="color: #BCE5F7;">Results</span>
+                            </h3>
+                            """, unsafe_allow_html=True)
+                            st.write(st.session_state[f"trend_analysis_{i}"])
+                            
+                            # Export button
+                            export_data = f"""# {creator_name} Strategy for Google Trend
 
-            if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
-              st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+**Trend:** {trend}
+**Region:** {selected_region_name}
+**Rank:** #{i}
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+## AI Analysis:
+{st.session_state[f"trend_analysis_{i}"]}
+
+## Related Queries:
+**Top Related:** {', '.join(related.get('top', [])[:5]) if related.get('top') else 'None'}
+**Rising Related:** {', '.join(related.get('rising', [])[:5]) if related.get('rising') else 'None'}
+"""
+                            
+                            st.download_button(
+                                label="📄 Export Strategy",
+                                data=export_data,
+                                file_name=f"{creator_name.replace(' ', '_')}_{trend.replace(' ', '_')}_strategy.txt",
+                                mime="text/plain",
+                                key=f"export_trend_{i}"
+                            )
+                            st.markdown('</div>', unsafe_allow_html=True)
+                    else:
+                        st.info("⚠️ Configure OpenAI API key for content strategy analysis")
+        
+        with tab2:
+            st.info("Analysis history will appear here after you analyze trends")
+    
+    # Info section at bottom
+    st.markdown("""
+    <div class="two-column" style="margin-top: 3rem;">
+        <div>
+            <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+                Ride the <span style="color: #BCE5F7;">Wave</span>
+            </h2>
+            <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+                Google Trends shows you what the world is searching for right now. Create content 
+                that captures attention when interest is at its peak.
+            </p>
+        </div>
+        <div style="padding-left: 3rem;">
+            <div class="numbered-list">
+                <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+                    <span style="font-size: 18px;">Select your region</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+                    <span style="font-size: 18px;">Analyze trending topics</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+                    <span style="font-size: 18px;">Create timely content</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 elif platform == "Reddit Analysis":
   # Hero-style header
