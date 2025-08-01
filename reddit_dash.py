@@ -1260,6 +1260,202 @@ Provide a comprehensive content strategy for {creator_name}:
         return response.choices[0].message.content
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
+    
+# ============ WIKIPEDIA TRENDS FUNCTIONS ============
+
+def get_wikipedia_trending(date=None, limit=50):
+    """Get most viewed Wikipedia articles for a specific date"""
+    try:
+        # If no date provided, use yesterday (today's data might not be complete)
+        if not date:
+            date = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
+        else:
+            # Convert date to required format
+            date = datetime.strptime(date, '%Y-%m-%d').strftime('%Y/%m/%d')
+        
+        # Wikipedia Pageviews API
+        url = f"https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/{date}"
+        
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get('items', [{}])[0].get('articles', [])
+            
+            # Filter out main page and special pages
+            filtered_articles = []
+            for article in articles:
+                title = article.get('article', '')
+                if not any(skip in title.lower() for skip in ['main_page', 'special:', 'portal:', 'file:', 'help:', 'wikipedia:']):
+                    filtered_articles.append({
+                        'title': title.replace('_', ' '),
+                        'views': article.get('views', 0),
+                        'rank': article.get('rank', 0)
+                    })
+            
+            return filtered_articles[:limit]
+        else:
+            st.error(f"❌ Wikipedia API Error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Error fetching Wikipedia trends: {str(e)}")
+        return None
+
+def get_wikipedia_article_summary(title):
+    """Get summary of a Wikipedia article"""
+    try:
+        # Wikipedia API endpoint
+        url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + title.replace(' ', '_')
+        
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'title': data.get('title', title),
+                'extract': data.get('extract', 'No summary available'),
+                'thumbnail': data.get('thumbnail', {}).get('source', None),
+                'url': data.get('content_urls', {}).get('desktop', {}).get('page', '')
+            }
+        return None
+        
+    except Exception as e:
+        return None
+
+def get_wikipedia_recent_changes(limit=20, namespace=0):
+    """Get recently edited Wikipedia articles (often indicates trending topics)"""
+    try:
+        url = "https://en.wikipedia.org/w/api.php"
+        params = {
+            'action': 'query',
+            'list': 'recentchanges',
+            'rcprop': 'title|ids|sizes|user|comment',
+            'rcnamespace': namespace,  # 0 = main articles
+            'rclimit': limit,
+            'rctype': 'edit|new',
+            'format': 'json'
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            changes = data.get('query', {}).get('recentchanges', [])
+            
+            # Group by title and count edits
+            edit_counts = {}
+            for change in changes:
+                title = change.get('title', '')
+                if title not in edit_counts:
+                    edit_counts[title] = {
+                        'title': title,
+                        'edits': 0,
+                        'size_change': 0,
+                        'latest_comment': change.get('comment', '')
+                    }
+                edit_counts[title]['edits'] += 1
+                edit_counts[title]['size_change'] += change.get('newlen', 0) - change.get('oldlen', 0)
+            
+            # Sort by edit count
+            trending_edits = sorted(edit_counts.values(), key=lambda x: x['edits'], reverse=True)
+            return trending_edits[:10]
+        
+        return None
+        
+    except Exception as e:
+        st.error(f"❌ Error fetching recent changes: {str(e)}")
+        return None
+
+def analyze_wikipedia_trend_for_creator(article_title, summary, views, creator_name, api_key):
+    """Analyze how a creator should cover a trending Wikipedia topic"""
+    if not api_key:
+        return None
+    
+    import openai
+    openai.api_key = api_key
+    
+    context = f"""Trending Wikipedia Article:
+Title: {article_title}
+Views: {views:,} (in last 24 hours)
+Summary: {summary}
+
+This article is trending on Wikipedia, indicating high public interest."""
+    
+    prompt = f"""Analyze this trending Wikipedia topic for {creator_name}'s content strategy:
+
+{context}
+
+Provide a comprehensive content strategy for {creator_name}:
+
+TREND ANALYSIS: Why is this topic trending and what's driving the interest (2-3 sentences)
+
+{creator_name.upper()} ANGLE: How {creator_name} should approach this topic based on their personality and audience
+
+VIDEO CONCEPTS: 3 specific video ideas with titles that {creator_name} could create:
+- Title 1: [Specific title]
+- Title 2: [Specific title]  
+- Title 3: [Specific title]
+
+HOT TAKE: {creator_name}'s unique, provocative perspective on this topic
+
+DEEP DIVE ANGLES: What aspects of this topic {creator_name} could explore that others might miss
+
+SOCIAL MEDIA STRATEGY: How to leverage this trend across platforms:
+- YouTube Shorts idea
+- TikTok approach
+- Instagram Reels concept
+- Twitter/X thread idea
+
+TIMING: How urgent is this trend? When should {creator_name} publish content?
+
+CONTENT FORMAT: Best format for {creator_name} (explainer, reaction, investigation, story-time, etc.)
+
+HASHTAGS: Relevant hashtags for maximum reach
+
+UNIQUE SPIN: What {creator_name} could do differently than everyone else covering this topic"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=800,
+            timeout=30
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI Analysis Error: {str(e)}"
+    
+# Add this after the display sections in Wikipedia Trends
+st.markdown("""
+<div class="two-column" style="margin-top: 3rem;">
+    <div>
+        <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+            Knowledge <span style="color: #BCE5F7;">Trends</span>
+        </h2>
+        <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+            Wikipedia page views reveal what topics millions are researching right now. 
+            High view counts indicate breaking news, viral phenomena, or renewed interest in topics.
+        </p>
+    </div>
+    <div style="padding-left: 3rem;">
+        <div class="numbered-list">
+            <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+                <span style="font-size: 18px;">Track page views</span>
+            </div>
+            <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+                <span style="font-size: 18px;">Analyze trending topics</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+                <span style="font-size: 18px;">Create timely content</span>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ============ SIDEBAR CONFIGURATION ============
 
@@ -1271,7 +1467,7 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
   "Choose Platform",
-  ["Reddit Analysis", "YouTube Intelligence", "Google Trends Analysis"],
+  ["Reddit Analysis", "YouTube Intelligence", "Wikipedia Trends"],
   key="platform_select"
 )
 
@@ -1796,203 +1992,166 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
                 if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                     st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
 
-elif platform == "Google Trends Analysis":
+elif platform == "Wikipedia Trends":
     # Hero-style header
     st.markdown("""
     <div style="margin-bottom: 4rem;">
         <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
-            Google Trends <span style="color: #BCE5F7;">Analysis</span>
+            Wikipedia <span style="color: #BCE5F7;">Trends</span>
         </h1>
         <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
-            Discover what's trending right now and create timely content that rides the wave of public interest.
+            Discover what millions are reading on Wikipedia right now and create content around trending topics.
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Region selection
+    # Configuration section
     st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
     
     col1, col2 = st.columns([2, 1])
     with col1:
-        region_map = {
-            "United States": "united_states",
-            "United Kingdom": "united_kingdom", 
-            "Canada": "canada",
-            "Australia": "australia",
-            "India": "india",
-            "Germany": "germany",
-            "France": "france",
-            "Japan": "japan",
-            "Brazil": "brazil",
-            "Mexico": "mexico"
-        }
-        
-        selected_region_name = st.selectbox(
-            "SELECT REGION",
-            list(region_map.keys()),
-            key="trend_region_select"
+        trend_type = st.radio(
+            "Trend Type",
+            ["Most Viewed Articles", "Recently Edited (Breaking News)"],
+            key="wiki_trend_type"
         )
-        selected_region = region_map[selected_region_name]
     
     with col2:
-        if st.button("🔄 REFRESH TRENDS", key="refresh_trends", type="primary"):
-            if 'trending_searches' in st.session_state:
-                del st.session_state.trending_searches
+        if trend_type == "Most Viewed Articles":
+            # Date picker for historical data
+            selected_date = st.date_input(
+                "Select Date",
+                value=datetime.now() - timedelta(days=1),
+                max_value=datetime.now() - timedelta(days=1),
+                min_value=datetime.now() - timedelta(days=90),
+                key="wiki_date"
+            )
+        else:
+            st.info("Shows articles being actively edited right now")
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Get trending searches
-    if 'trending_searches' not in st.session_state or st.button("Get Trending Now", key="get_trends_btn", type="primary", use_container_width=True):
-        with st.spinner(f"🔍 Fetching trending searches in {selected_region_name}..."):
-            trending = get_trending_searches(selected_region)
-            if trending:
-                st.session_state.trending_searches = trending
-                st.session_state.trend_region_name = selected_region_name
+    # Get trends button
+    if st.button("Get Wikipedia Trends", key="get_wiki_trends", type="primary", use_container_width=True):
+        with st.spinner("🔍 Fetching Wikipedia trends..."):
+            if trend_type == "Most Viewed Articles":
+                trends = get_wikipedia_trending(selected_date.strftime('%Y-%m-%d'))
+                if trends:
+                    st.session_state.wiki_trends = trends
+                    st.session_state.wiki_trend_date = selected_date.strftime('%Y-%m-%d')
+                    st.success(f"✅ Found top {len(trends)} trending articles for {selected_date.strftime('%B %d, %Y')}")
             else:
-                # Clear session state if fetch failed
-                if 'trending_searches' in st.session_state:
-                    del st.session_state.trending_searches
-                st.error("❌ Unable to fetch Google Trends data. This typically occurs due to API rate limiting or regional restrictions.")
-                st.info("💡 Google Trends has strict rate limits. Try again in a few minutes or consider using a VPN.")
+                changes = get_wikipedia_recent_changes()
+                if changes:
+                    st.session_state.wiki_changes = changes
+                    st.success(f"✅ Found {len(changes)} actively edited articles")
     
-    # Display trends only if we have data
-    if 'trending_searches' in st.session_state and st.session_state.trending_searches:
-        st.success(f"✅ Top trending searches in {st.session_state.get('trend_region_name', selected_region_name)}")
+    # Display trends
+    if trend_type == "Most Viewed Articles" and 'wiki_trends' in st.session_state:
+        st.markdown(f"### 📈 Most Viewed Wikipedia Articles - {st.session_state.get('wiki_trend_date', '')}")
         
-        # Create tabs for organization
-        tab1, tab2 = st.tabs(["TRENDING NOW", "ANALYSIS HISTORY"])
-        
-        with tab1:
-            for i, trend in enumerate(st.session_state.trending_searches, 1):
-                with st.expander(f"{i:02d} | 🔥 {trend}", expanded=False):
-                    # ... rest of your expander code remains the same                    # Trend metrics mockup
-                    st.markdown(f"""
-                    <div style="display: flex; gap: 3rem; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
-                        <div style="text-align: center;">
-                            <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">#{i}</p>
-                            <p style="font-size: 14px; text-transform: uppercase; color: #666;">Rank</p>
-                        </div>
-                        <div style="text-align: center;">
-                            <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">🔥</p>
-                            <p style="font-size: 14px; text-transform: uppercase; color: #666;">Trending</p>
-                        </div>
-                        <div style="text-align: center;">
-                            <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">📈</p>
-                            <p style="font-size: 14px; text-transform: uppercase; color: #666;">Rising</p>
-                        </div>
+        for i, article in enumerate(st.session_state.wiki_trends[:20], 1):
+            with st.expander(f"{i:02d} | 📊 {article['title']} ({article['views']:,} views)", expanded=False):
+                # Metrics
+                st.markdown(f"""
+                <div style="display: flex; gap: 3rem; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+                    <div style="text-align: center;">
+                        <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">#{article['rank']}</p>
+                        <p style="font-size: 14px; text-transform: uppercase; color: #666;">Rank</p>
                     </div>
-                    """, unsafe_allow_html=True)
+                    <div style="text-align: center;">
+                        <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">{article['views']:,}</p>
+                        <p style="font-size: 14px; text-transform: uppercase; color: #666;">Views (24h)</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">🔥</p>
+                        <p style="font-size: 14px; text-transform: uppercase; color: #666;">Trending</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Get article summary
+                if st.button(f"Get Article Details", key=f"wiki_summary_{i}"):
+                    with st.spinner("Fetching article summary..."):
+                        summary_data = get_wikipedia_article_summary(article['title'])
+                        if summary_data:
+                            st.session_state[f"wiki_summary_{i}"] = summary_data
+                
+                # Display summary if available
+                if f"wiki_summary_{i}" in st.session_state:
+                    summary_data = st.session_state[f"wiki_summary_{i}"]
                     
-                    # Get related queries
-                    if st.button(f"Get Related Queries", key=f"related_{i}"):
-                        with st.spinner("🔍 Fetching related searches..."):
-                            related = get_related_queries(trend, selected_region.upper()[:2])
-                            st.session_state[f"related_{i}"] = related
+                    if summary_data.get('thumbnail'):
+                        st.image(summary_data['thumbnail'], width=300)
                     
-                    # Display related queries if available
-                    if f"related_{i}" in st.session_state:
-                        related = st.session_state[f"related_{i}"]
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown("**🔝 Top Related Searches:**")
-                            if related['top']:
-                                for query in related['top'][:5]:
-                                    st.write(f"• {query}")
-                            else:
-                                st.write("No data available")
-                        
-                        with col2:
-                            st.markdown("**📈 Rising Related Searches:**")
-                            if related['rising']:
-                                for query in related['rising'][:5]:
-                                    st.write(f"• {query}")
-                            else:
-                                st.write("No data available")
+                    st.write(f"**Summary:** {summary_data['extract']}")
+                    st.write(f"[Read on Wikipedia]({summary_data['url']})")
                     
                     # AI Analysis
                     if api_key:
-                        if st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_trend_{i}"):
-                            with st.spinner(f"🤖 Analyzing trend for {creator_name}..."):
-                                # Get related queries if not already fetched
-                                if f"related_{i}" not in st.session_state:
-                                    related = get_related_queries(trend, selected_region.upper()[:2])
-                                else:
-                                    related = st.session_state[f"related_{i}"]
-                                
-                                analysis = analyze_trend_for_creator(trend, related, creator_name, api_key)
-                                st.session_state[f"trend_analysis_{i}"] = analysis
+                        if st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_wiki_{i}"):
+                            with st.spinner(f"🤖 Analyzing for {creator_name}..."):
+                                analysis = analyze_wikipedia_trend_for_creator(
+                                    article['title'],
+                                    summary_data['extract'],
+                                    article['views'],
+                                    creator_name,
+                                    api_key
+                                )
+                                st.session_state[f"wiki_analysis_{i}"] = analysis
                         
-                        # Display analysis if available
-                        if f"trend_analysis_{i}" in st.session_state:
+                        # Display analysis
+                        if f"wiki_analysis_{i}" in st.session_state:
                             st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
                             st.markdown("""
                             <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
                                 AI Analysis <span style="color: #BCE5F7;">Results</span>
                             </h3>
                             """, unsafe_allow_html=True)
-                            st.write(st.session_state[f"trend_analysis_{i}"])
+                            st.write(st.session_state[f"wiki_analysis_{i}"])
                             
-                            # Export button
-                            export_data = f"""# {creator_name} Strategy for Google Trend
+                            # Export
+                            export_data = f"""# {creator_name} Strategy for Wikipedia Trend
 
-**Trend:** {trend}
-**Region:** {selected_region_name}
-**Rank:** #{i}
-**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
+**Topic:** {article['title']}
+**Views:** {article['views']:,} (24 hours)
+**Rank:** #{article['rank']}
+**Date:** {st.session_state.get('wiki_trend_date', '')}
+
+## Summary:
+{summary_data['extract']}
 
 ## AI Analysis:
-{st.session_state[f"trend_analysis_{i}"]}
+{st.session_state[f"wiki_analysis_{i}"]}
 
-## Related Queries:
-**Top Related:** {', '.join(related.get('top', [])[:5]) if related.get('top') else 'None'}
-**Rising Related:** {', '.join(related.get('rising', [])[:5]) if related.get('rising') else 'None'}
+Wikipedia URL: {summary_data['url']}
+Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
 """
                             
                             st.download_button(
                                 label="📄 Export Strategy",
                                 data=export_data,
-                                file_name=f"{creator_name.replace(' ', '_')}_{trend.replace(' ', '_')}_strategy.txt",
+                                file_name=f"{creator_name.replace(' ', '_')}_{article['title'].replace(' ', '_')}_strategy.txt",
                                 mime="text/plain",
-                                key=f"export_trend_{i}"
+                                key=f"export_wiki_{i}"
                             )
                             st.markdown('</div>', unsafe_allow_html=True)
                     else:
                         st.info("⚠️ Configure OpenAI API key for content strategy analysis")
-        
-        with tab2:
-            st.info("Analysis history will appear here after you analyze trends")
     
-    # Info section at bottom
-    st.markdown("""
-    <div class="two-column" style="margin-top: 3rem;">
-        <div>
-            <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
-                Ride the <span style="color: #BCE5F7;">Wave</span>
-            </h2>
-            <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
-                Google Trends shows you what the world is searching for right now. Create content 
-                that captures attention when interest is at its peak.
-            </p>
-        </div>
-        <div style="padding-left: 3rem;">
-            <div class="numbered-list">
-                <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
-                    <span style="font-size: 18px;">Select your region</span>
-                </div>
-                <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
-                    <span style="font-size: 18px;">Analyze trending topics</span>
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
-                    <span style="font-size: 18px;">Create timely content</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    elif trend_type == "Recently Edited (Breaking News)" and 'wiki_changes' in st.session_state:
+        st.markdown("### 🔴 Breaking: Most Edited Wikipedia Articles")
+        st.info("High edit activity often indicates breaking news or developing stories")
+        
+        for i, change in enumerate(st.session_state.wiki_changes, 1):
+            with st.expander(f"{i:02d} | 📝 {change['title']} ({change['edits']} recent edits)", expanded=False):
+                st.write(f"**Recent Edits:** {change['edits']}")
+                st.write(f"**Size Change:** {change['size_change']:+} bytes")
+                if change['latest_comment']:
+                    st.write(f"**Latest Edit Comment:** {change['latest_comment']}")
+                
+                # Similar analysis flow as above...
+
 
 elif platform == "Reddit Analysis":
   # Hero-style header
