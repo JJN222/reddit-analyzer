@@ -1426,37 +1426,6 @@ UNIQUE SPIN: What {creator_name} could do differently than everyone else coverin
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
     
-# Add this after the display sections in Wikipedia Trends
-st.markdown("""
-<div class="two-column" style="margin-top: 3rem;">
-    <div>
-        <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
-            Knowledge <span style="color: #BCE5F7;">Trends</span>
-        </h2>
-        <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
-            Wikipedia page views reveal what topics millions are researching right now. 
-            High view counts indicate breaking news, viral phenomena, or renewed interest in topics.
-        </p>
-    </div>
-    <div style="padding-left: 3rem;">
-        <div class="numbered-list">
-            <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
-                <span style="font-size: 18px;">Track page views</span>
-            </div>
-            <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
-                <span style="font-size: 18px;">Analyze trending topics</span>
-            </div>
-            <div style="display: flex; align-items: center;">
-                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
-                <span style="font-size: 18px;">Create timely content</span>
-            </div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
 # ============ SIDEBAR CONFIGURATION ============
 
 st.sidebar.markdown("""
