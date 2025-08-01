@@ -19,99 +19,277 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-    --shorthand-blue: #b5def2;
-    --shorthand-cream: #e5dec8;
-    --shorthand-dark: #322e25;
-    --shorthand-white: #ffffff;
-    --shorthand-gray: #f8f9fa;
-    --shorthand-accent: #4a90e2;
+    --primary-text: #221F1F;
+    --accent-blue: #BCE5F7;
+    --secondary-beige: #E6DDC1;
+    --background: #FFFFFF;
+    --footer-grey: #666666;
+}
+
+/* Global styles */
+* {
+    color: var(--primary-text);
+}
+
+body {
+    background-color: var(--background);
 }
 
 .main .block-container {
-    padding-top: 1rem;
-    max-width: 1400px;
-    padding-left: 3rem;
-    padding-right: 3rem;
+    padding-top: 2rem;
+    max-width: 1200px;
+    padding-left: 4rem;
+    padding-right: 4rem;
 }
 
-.main-header {
-    background: linear-gradient(135deg, var(--shorthand-blue) 0%, var(--shorthand-accent) 100%);
-    padding: 3rem 2rem;
-    margin: -1rem -1rem 2rem -1rem;
-    text-align: center;
-    border-radius: 0 0 20px 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+/* Hero section */
+.hero-section {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem 0;
+    background: var(--background);
 }
 
-.logo-text {
+.hero-headline {
     font-family: 'Inter', sans-serif;
-    font-size: 3rem;
+    font-size: 130px;
     font-weight: 900;
-    color: var(--shorthand-white);
-    letter-spacing: -1px;
     text-transform: uppercase;
-    margin-bottom: 0.5rem;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: var(--primary-text);
+    line-height: 0.9;
+    letter-spacing: -4px;
+    margin-bottom: 2rem;
 }
 
-.subtitle {
+.hero-headline .accent {
+    color: var(--accent-blue);
+}
+
+.tagline {
     font-family: 'Inter', sans-serif;
-    color: var(--shorthand-white);
-    font-size: 1.3rem;
-    font-weight: 400;
-    opacity: 0.9;
-    margin-top: 0.5rem;
+    font-size: 30px;
+    font-weight: 300;
+    color: var(--primary-text);
+    line-height: 1.4;
+    margin-bottom: 3rem;
+    max-width: 600px;
 }
 
+/* CTA Buttons */
 .stButton > button {
-    background: linear-gradient(135deg, var(--shorthand-cream) 0%, #d6e8f5 100%);
-    color: var(--shorthand-dark);
-    border: 2px solid var(--shorthand-dark);
+    background: var(--accent-blue);
+    color: var(--primary-text);
+    border: none;
     font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    border-radius: 12px;
-    padding: 0.5rem 1rem;
+    font-weight: 700;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    padding: 1rem 2rem;
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .stButton > button:hover {
-    background: linear-gradient(135deg, var(--shorthand-dark) 0%, #1a1612 100%);
-    color: white;
+    background: var(--primary-text);
+    color: var(--accent-blue);
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
 }
 
+/* Section headings */
+h1, h2, h3 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--primary-text);
+    letter-spacing: -1px;
+}
+
+h2 {
+    font-size: 48px;
+    margin-bottom: 2rem;
+}
+
+h3 {
+    font-size: 32px;
+    margin-bottom: 1.5rem;
+}
+
+/* Numbered lists */
+.numbered-list {
+    counter-reset: section;
+    margin: 2rem 0;
+}
+
+.numbered-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.numbered-item::before {
+    counter-increment: section;
+    content: "0" counter(section);
+    font-family: 'Inter', sans-serif;
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--accent-blue);
+    margin-right: 2rem;
+    min-width: 80px;
+}
+
+/* Body text */
+p, .stMarkdown {
+    font-family: 'Inter', sans-serif;
+    font-size: 19px;
+    font-weight: 300;
+    line-height: 1.6;
+    color: var(--primary-text);
+}
+
+/* Two column layout */
+.two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    margin: 4rem 0;
+    align-items: center;
+}
+
+/* Hexagon shapes for ecosystem */
+.hexagon {
+    width: 120px;
+    height: 120px;
+    background: var(--secondary-beige);
+    position: relative;
+    margin: 60px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%);
+}
+
+.hexagon.blue {
+    background: var(--accent-blue);
+}
+
+/* AI Analysis box - updated style */
 .ai-analysis {
-    background: linear-gradient(135deg, #f8fafc 0%, #e3f2fd 100%);
-    border: 1px solid var(--shorthand-blue);
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    background: #f8f9fa;
+    border-left: 4px solid var(--accent-blue);
+    border-radius: 0;
+    padding: 2rem;
+    margin: 2rem 0;
     font-family: 'Inter', sans-serif;
 }
 
+/* Expander style */
+.stExpander {
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    margin-bottom: 1rem;
+}
+
+/* Footer */
 .footer {
-    background: linear-gradient(135deg, var(--shorthand-dark) 0%, #1a1612 100%);
-    color: white;
-    padding: 3rem 2rem;
-    margin: 3rem -1rem -1rem -1rem;
-    text-align: center;
-    border-radius: 20px 20px 0 0;
+    background: var(--secondary-beige);
+    color: var(--footer-grey);
+    padding: 4rem 2rem;
+    margin: 4rem -4rem -2rem -4rem;
+    text-align: left;
     font-family: 'Inter', sans-serif;
+}
+
+.footer .brand {
+    font-size: 24px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--primary-text);
+    margin-bottom: 1rem;
+}
+
+/* Sidebar styling */
+.css-1d391kg {
+    background-color: #fafafa;
+}
+
+/* Input fields */
+.stTextInput > div > div > input,
+.stSelectbox > div > div > select {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+}
+
+/* Metrics */
+.metric-container {
+    background: var(--background);
+    border: 1px solid #e0e0e0;
+    padding: 1.5rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* Info boxes */
+.stInfo {
+    background-color: rgba(188, 229, 247, 0.1);
+    border: 1px solid var(--accent-blue);
+    border-radius: 4px;
+}
+
+/* Success messages */
+.stSuccess {
+    background-color: rgba(188, 229, 247, 0.1);
+    color: var(--primary-text);
+    border: 1px solid var(--accent-blue);
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 2rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.stTabs [data-baseweb="tab"] {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--primary-text);
+    padding: 1rem 0;
+}
+
+.stTabs [aria-selected="true"] {
+    color: var(--accent-blue);
+    border-bottom: 3px solid var(--accent-blue);
+}
+
+/* White space and layout */
+.section-spacing {
+    margin: 6rem 0;
+}
+
+.content-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Enhanced Header
+# Enhanced Header with new design
 st.markdown("""
-<div class="main-header">
-    <div class="logo-text">SHORTHAND STUDIOS</div>
-    <div class="subtitle">AI-Powered Content Intelligence Platform</div>
-    <div style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">
-        🚀 Real-time trends • 🎯 Creator insights • 📊 Multi-platform analysis
-    </div>
+<div class="hero-section">
+    <h1 class="hero-headline">Content<br>Intelligence<br><span class="accent">Amplified.</span></h1>
+    <p class="tagline">Transform trending conversations into compelling content with AI-powered insights for creators and publishers.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -405,15 +583,25 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
         
         post_data['image_url'] = image_url
         
-        with st.expander(f"#{i+1}: {title[:80]}{'...' if len(title) > 80 else ''}", expanded=False):
-            # Metrics - REMOVED TRENDING SCORE
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Score", f"{score:,}")
-            with col2:
-                st.metric("Comments", f"{num_comments:,}")
-            with col3:
-                st.metric("Hours ago", f"{int((datetime.now() - created).total_seconds() / 3600)}")
+        with st.expander(f"{i+1:02d} | {title[:80]}{'...' if len(title) > 80 else ''}", expanded=False):
+            # Clean metrics display
+            st.markdown(f"""
+            <div style="display: flex; gap: 3rem; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
+                <div style="text-align: center;">
+                    <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">{score:,}</p>
+                    <p style="font-size: 14px; text-transform: uppercase; color: #666;">Upvotes</p>
+                </div>
+                <div style="text-align: center;">
+                    <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">{num_comments:,}</p>
+                    <p style="font-size: 14px; text-transform: uppercase; color: #666;">Comments</p>
+                </div>
+                <div style="text-align: center;">
+                    <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">{int((datetime.now() - created).total_seconds() / 3600)}</p>
+                    <p style="font-size: 14px; text-transform: uppercase; color: #666;">Hours Ago</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
             
             st.write(f"**Author:** u/{author}")
             
@@ -444,6 +632,11 @@ def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
                 
                 if analysis and not analysis.startswith("AI Analysis Error"):
                     st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                    st.markdown("""
+                    <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                        AI Analysis <span style="color: #BCE5F7;">Results</span>
+                    </h3>
+                    """, unsafe_allow_html=True)
                     
                     if is_image:
                         st.info("🖼️ Image analysis included")
@@ -496,6 +689,11 @@ Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
                     st.error(analysis)
             else:
                 st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                st.markdown("""
+                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                </h3>
+                """, unsafe_allow_html=True)
                 st.markdown(f"### 🤖 AI Analysis for {creator_name}")
                 st.info("⚠️ AI analysis unavailable - configure API keys in environment variables")
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -955,7 +1153,11 @@ For the top 3 most relevant trends, provide:
 
 # ============ SIDEBAR CONFIGURATION ============
 
-st.sidebar.header("🎯 Content Intelligence Hub")
+st.sidebar.markdown("""
+<h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
+    Platform <span style="color: #BCE5F7;">Selection</span>
+</h2>
+""", unsafe_allow_html=True)
 
 platform = st.sidebar.selectbox(
     "📊 Choose Platform",
@@ -996,29 +1198,87 @@ with st.sidebar.expander("🔑 API Status", expanded=False):
 # ============ MAIN CONTENT ============
 
 if platform == "📺 YouTube Intelligence":
-    st.header("📺 YouTube Intelligence Center")
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+            YouTube Intelligence <span style="color: #BCE5F7;">Center</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+            Discover trending content, analyze audience sentiment, and generate data-driven content strategies.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # SWAP THE ORDER - Video Search first, then Trending
-    tab1, tab2 = st.tabs(["🔍 Video Search", "🔥 Trending Videos"])
+    # Clean tabs with new styling
+    tab1, tab2 = st.tabs(["VIDEO SEARCH", "TRENDING ANALYSIS"])
     
     with tab1:
-        st.subheader("🔍 YouTube Video Search")
-        st.info("💡 Search YouTube by keywords, channel name, video URL, or any combination")
+        # Two-column intro
+        st.markdown("""
+        <div class="two-column" style="margin-bottom: 3rem;">
+            <div>
+                <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+                    Search <span style="color: #BCE5F7;">Smarter</span>
+                </h2>
+                <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+                    Find videos by keywords, channels, or direct URLs. Apply time filters to discover the freshest content.
+                </p>
+            </div>
+            <div style="padding-left: 3rem;">
+                <div class="numbered-list">
+                    <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                        <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+                        <span style="font-size: 18px;">Enter search criteria</span>
+                    </div>
+                    <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                        <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+                        <span style="font-size: 18px;">Analyze results with AI</span>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+                        <span style="font-size: 18px;">Generate content ideas</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Search inputs
+        # Clean search inputs with better spacing
+        st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
+        
         col1, col2 = st.columns([3, 1])
         with col1:
-            search_keywords = st.text_input("Keywords", placeholder="e.g., 'true crime stories', 'makeup tutorial'", key="keyword_input")
+            search_keywords = st.text_input(
+                "KEYWORDS", 
+                placeholder="e.g., 'true crime stories', 'makeup tutorial'", 
+                key="keyword_input",
+                label_visibility="visible"
+            )
         with col2:
-            search_timeframe = st.selectbox("Timeframe", ["Last 2 Days", "Last Week", "Last Month", "Anytime"], key="youtube_timeframe")
+            search_timeframe = st.selectbox(
+                "TIMEFRAME", 
+                ["Last 2 Days", "Last Week", "Last Month", "Anytime"], 
+                key="youtube_timeframe"
+            )
         
-        # Channel name input without separate timeframe
-        search_channel = st.text_input("Channel Name", placeholder="e.g., 'Bailey Sarian', 'MrBeast'", key="channel_input")
+        search_channel = st.text_input(
+            "CHANNEL NAME", 
+            placeholder="e.g., 'Bailey Sarian', 'MrBeast'", 
+            key="channel_input"
+        )
         
-        video_url = st.text_input("Video URL", placeholder="e.g., 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' or just 'dQw4w9WgXcQ'", key="video_url_input")
-
-        # Search button
-        if st.button("🔍 Search", key="search_youtube", type="primary", use_container_width=True):
+        video_url = st.text_input(
+            "VIDEO URL", 
+            placeholder="e.g., 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'", 
+            key="video_url_input"
+        )
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Search button - styled as primary CTA
+        if st.button("SEARCH YOUTUBE", key="search_youtube", type="primary", use_container_width=True):
+            # ... existing search logic ...
             search_results = []  # Initialize search_results here
             
             # Extract video ID from URL if provided
@@ -1177,20 +1437,32 @@ if platform == "📺 YouTube Intelligence":
             search_results = st.session_state.youtube_search_results
             
             for i, video in enumerate(search_results, 1):
-                with st.expander(f"#{i}: {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
-                    col1, col2 = st.columns([3, 1])
+                with st.expander(f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
+                    # Add clean metric display
+                    st.markdown(f"""
+                    <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
+                        <div>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
+                            <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
+                            <p style="font-size: 20px; font-weight: 600;">{video.get('views', 'N/A')}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
+                            <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
                     
-                    with col1:
-                        st.write(f"**Channel:** {video['channel']}")
-                        st.write(f"**Published:** {video['published']}")
-                        if video.get('views'):
-                            st.write(f"**Views:** {video['views']}")
-                        if video.get('description'):
-                            st.write(f"**Description:** {video['description']}")
+                    # Add description and thumbnail after metrics
+                    if video.get('description'):
+                        st.write(f"**Description:** {video['description']}")
+
+                    if video.get('thumbnail'):
+                        st.image(video['thumbnail'], width=200)
                     
-                    with col2:
-                        if video.get('thumbnail'):
-                            st.image(video['thumbnail'], width=120)
                     
                     if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                         st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
@@ -1261,6 +1533,11 @@ Provide {creator_name}'s reaction strategy:
                     # Display stored reaction analysis
                     if f"reaction_analysis_{i}" in st.session_state:
                         st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                        st.markdown("""
+                        <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                            AI Analysis <span style="color: #BCE5F7;">Results</span>
+                        </h3>
+                        """, unsafe_allow_html=True)
                         st.markdown(f"### 🎯 {creator_name} Reaction Strategy")
                         st.write(st.session_state[f"reaction_analysis_{i}"])
                         st.markdown('</div>', unsafe_allow_html=True)
@@ -1280,6 +1557,11 @@ Provide {creator_name}'s reaction strategy:
                         
                         if analysis and not analysis.startswith("Comment Analysis Error"):
                             st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                            st.markdown("""
+                            <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                AI Analysis <span style="color: #BCE5F7;">Results</span>
+                            </h3>
+                            """, unsafe_allow_html=True)
                             st.markdown(f"### 💬 Comment Analysis for {creator_name}")
                             st.write(analysis)
                             st.markdown('</div>', unsafe_allow_html=True)
@@ -1306,20 +1588,32 @@ Provide {creator_name}'s reaction strategy:
                 st.success(f"✅ Found {len(trending_videos)} trending videos")
                 
                 for i, video in enumerate(trending_videos, 1):
-                    with st.expander(f"#{i}: {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
-                        col1, col2 = st.columns([3, 1])
-                        
-                        with col1:
-                            st.write(f"**Channel:** {video['channel']}")
-                            st.write(f"**Views:** {video['views']}")
-                            st.write(f"**Published:** {video['published']}")
-                            if video.get('description'):
-                                st.write(f"**Description:** {video['description']}")
-                        
-                        with col2:
-                            if video.get('thumbnail'):
-                                st.image(video['thumbnail'], width=100)
-                        
+                    with st.expander(f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", expanded=False):
+                        # Add clean metric display for trending videos
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
+                            <div>
+                                <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
+                                <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
+                                <p style="font-size: 20px; font-weight: 600;">{video['views']}</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
+                                <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        # After the metric display HTML, add:
+                        if video.get('description'):
+                            st.write(f"**Description:** {video['description']}")
+
+                        if video.get('thumbnail'):
+                            st.image(video['thumbnail'], width=200)
+
                         # Creator reaction analysis for each video
                         if api_key:
                             if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
@@ -1353,6 +1647,11 @@ Provide {creator_name}'s reaction strategy:
                                         )
                                         
                                         st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                        st.markdown("""
+                                        <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                            AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                        </h3>
+                                        """, unsafe_allow_html=True)
                                         st.write(response.choices[0].message.content)
                                         st.markdown('</div>', unsafe_allow_html=True)
                                     except Exception as e:
@@ -1362,77 +1661,127 @@ Provide {creator_name}'s reaction strategy:
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
 
 elif platform == "🌊 Reddit Analysis":
-    st.header("🌊 Reddit Content Analysis")
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+            Reddit Content <span style="color: #BCE5F7;">Analysis</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+            Discover viral discussions, analyze community sentiment, and create content that resonates.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Initialize batch export session state
-    if 'analyzed_posts' not in st.session_state:
-        st.session_state.analyzed_posts = []
+    # Two-column layout for intro
+    st.markdown("""
+    <div class="two-column" style="margin-bottom: 3rem;">
+        <div>
+            <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+                Trending <span style="color: #BCE5F7;">Insights</span>
+            </h2>
+            <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+                Monitor subreddit activity, track viral posts, and understand what drives engagement in online communities.
+            </p>
+        </div>
+        <div style="padding-left: 3rem;">
+            <div class="numbered-list">
+                <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+                    <span style="font-size: 18px;">Select subreddit</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+                    <span style="font-size: 18px;">Analyze top posts</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+                    <span style="font-size: 18px;">Export insights</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Create a single column layout for all controls
+    # Clean input section
+    st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
+    
     col1, _ = st.columns([2, 1])
-    
     with col1:
+        st.markdown('<h3 style="font-size: 18px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">SUBREDDIT ANALYSIS</h3>', unsafe_allow_html=True)
+        
         subreddit_input = st.text_input(
-            "Enter Subreddit Name",
+            "ENTER SUBREDDIT NAME",
             value=st.session_state.selected_subreddit,
             placeholder="e.g., TrueCrime, serialkillers, UnresolvedMysteries",
             key="main_subreddit_input"
         )
         
-        # Settings - match width of subreddit input
-        selected_category = st.selectbox("Post Category", ["Hot Posts Only", "Top Posts Only", "Rising Posts Only", "All Categories (Slower)"], key="category_select")
-        post_limit = st.slider("Posts per category", 2, 10, 5, key="post_limit_slider")
+        # Settings with clean styling
+        selected_category = st.selectbox(
+            "POST CATEGORY", 
+            ["Hot Posts Only", "Top Posts Only", "Rising Posts Only", "All Categories"], 
+            key="category_select"
+        )
         
-        # Search functionality
-        with st.expander("🔍 Advanced Search"):
-            search_type = st.selectbox("Search Type", ["Search by Keywords", "Browse Subreddit"], key="search_type_select")
+        post_limit = st.slider(
+            "POSTS PER CATEGORY", 
+            2, 10, 5, 
+            key="post_limit_slider"
+        )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Search functionality
+    with st.expander("🔍 Advanced Search"):
+        search_type = st.selectbox("Search Type", ["Search by Keywords", "Browse Subreddit"], key="search_type_select")
+        
+        if search_type == "Search by Keywords":
+            search_query = st.text_input("🔍 Search Keywords", placeholder="e.g., 'biden speech', 'trump rally'", key="keyword_search_input")
             
-            if search_type == "Search by Keywords":
-                search_query = st.text_input("🔍 Search Keywords", placeholder="e.g., 'biden speech', 'trump rally'", key="keyword_search_input")
-                
-                search_scope = st.radio("Search Scope", ["All of Reddit", "Specific Subreddits"], key="search_scope_radio")
-                
-                if search_scope == "Specific Subreddits":
-                    search_subreddits = st.multiselect(
-                        "Select Subreddits",
-                        ["TrueCrime", "serialkillers", "UnresolvedMysteries", "MorbidReality", "Mystery", "ColdCases", "RBI", "LetsNotMeet", "nosleep", "creepy"],
-                        default=["TrueCrime", "serialkillers"],
-                        key="search_subreddits_multi"
-                    )
-                else:
-                    search_subreddits = ["all"]
-                
-                if st.button("🔍 Search Reddit", key="run_search_btn") and search_query:
-                    with st.spinner(f"🔍 Searching for '{search_query}'..."):
-                        search_results = search_reddit_by_keywords(search_query, search_subreddits, post_limit)
-                        
-                        if search_results:
-                            st.success(f"✅ Found {len(search_results)} posts matching '{search_query}'")
-                            
-                            # Group results by subreddit if multiple subreddits
-                            if len(search_subreddits) > 1 or search_subreddits == ["all"]:
-                                grouped_results = {}
-                                for post in search_results:
-                                    subreddit = post['data']['source_subreddit']
-                                    if subreddit not in grouped_results:
-                                        grouped_results[subreddit] = []
-                                    grouped_results[subreddit].append(post)
-                                
-                                for subreddit, posts in grouped_results.items():
-                                    st.subheader(f"📊 r/{subreddit} ({len(posts)} posts)")
-                                    display_posts(posts, subreddit, api_key, creator_name)
-                            else:
-                                display_posts(search_results, search_subreddits[0], api_key, creator_name)
-                        else:
-                            st.error(f"❌ No posts found for '{search_query}'. Try different keywords or subreddits.")
-        
-        # Analyze button right after Advanced Search
-        if st.button("🔍 ANALYZE SUBREDDIT", type="primary", key="analyze_main_btn", use_container_width=True):
-            if not subreddit_input:
-                st.warning("Please enter a subreddit name")
+            search_scope = st.radio("Search Scope", ["All of Reddit", "Specific Subreddits"], key="search_scope_radio")
+            
+            if search_scope == "Specific Subreddits":
+                search_subreddits = st.multiselect(
+                    "Select Subreddits",
+                    ["TrueCrime", "serialkillers", "UnresolvedMysteries", "MorbidReality", "Mystery", "ColdCases", "RBI", "LetsNotMeet", "nosleep", "creepy"],
+                    default=["TrueCrime", "serialkillers"],
+                    key="search_subreddits_multi"
+                )
             else:
-                st.session_state.should_analyze = True
-                st.session_state.subreddit_to_analyze = subreddit_input
+                search_subreddits = ["all"]
+            
+            if st.button("🔍 Search Reddit", key="run_search_btn") and search_query:
+                with st.spinner(f"🔍 Searching for '{search_query}'..."):
+                    search_results = search_reddit_by_keywords(search_query, search_subreddits, post_limit)
+                    
+                    if search_results:
+                        st.success(f"✅ Found {len(search_results)} posts matching '{search_query}'")
+                        
+                        # Group results by subreddit if multiple subreddits
+                        if len(search_subreddits) > 1 or search_subreddits == ["all"]:
+                            grouped_results = {}
+                            for post in search_results:
+                                subreddit = post['data']['source_subreddit']
+                                if subreddit not in grouped_results:
+                                    grouped_results[subreddit] = []
+                                grouped_results[subreddit].append(post)
+                            
+                            for subreddit, posts in grouped_results.items():
+                                st.subheader(f"📊 r/{subreddit} ({len(posts)} posts)")
+                                display_posts(posts, subreddit, api_key, creator_name)
+                        else:
+                            display_posts(search_results, search_subreddits[0], api_key, creator_name)
+                    else:
+                        st.error(f"❌ No posts found for '{search_query}'. Try different keywords or subreddits.")
+
+    # Analyze button right after Advanced Search
+    if st.button("🔍 ANALYZE SUBREDDIT", type="primary", key="analyze_main_btn", use_container_width=True):
+        if not subreddit_input:
+            st.warning("Please enter a subreddit name")
+        else:
+            st.session_state.should_analyze = True
+            st.session_state.subreddit_to_analyze = subreddit_input
     
     # Batch export section
     if 'analyzed_posts' in st.session_state and st.session_state.analyzed_posts:
@@ -1636,13 +1985,12 @@ elif platform == "🎬 Show Planner":
                         for j, post in enumerate(show['posts'], 1):
                             st.write(f"{j}. {post['title'][:60]}{'...' if len(post['title']) > 60 else ''}")
 
-# Footer
 st.markdown("""
 <div class="footer">
-    <div style="color: white; font-size: 1.5rem; font-weight: 700;">SHORTHAND STUDIOS</div>
-    <div style="color: #b5def2;">AI-Powered Content Intelligence Platform</div>
-    <div style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">
-        🚀 Multi-platform analysis • 🎯 Creator-focused insights • 📊 Real-time trends
+    <div class="brand">SHORTHAND STUDIOS</div>
+    <div style="font-size: 18px; margin-bottom: 1rem;">Content Intelligence Platform</div>
+    <div style="color: #999; font-size: 14px;">
+        Transform trending conversations into compelling content
     </div>
 </div>
 """, unsafe_allow_html=True)
