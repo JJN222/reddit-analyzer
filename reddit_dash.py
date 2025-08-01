@@ -1161,7 +1161,7 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
     "📊 Choose Platform",
-    ["🌊 Reddit", "📺 YouTube"],
+    ["🌊 Reddit Analysis", "📺 YouTube Intelligence"],
     key="platform_select"
 )
 
@@ -1171,7 +1171,8 @@ st.sidebar.markdown("""
 <h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
     ⚙️ Creator <span style="color: #BCE5F7;">Settings</span>
 </h2>
-""", unsafe_allow_html=True)creator_name = st.sidebar.text_input(
+""", unsafe_allow_html=True)
+creator_name = st.sidebar.text_input(
     "🎙️ Creator/Show",
     value="Bailey Sarian",
     placeholder="e.g., Bailey Sarian, True Crime Creator, YouTuber",
