@@ -1214,35 +1214,6 @@ if platform == "YouTube Intelligence":
   tab1, tab2 = st.tabs(["VIDEO SEARCH", "TRENDING ANALYSIS"])
   
   with tab1:
-    # Two-column intro
-    st.markdown("""
-    <div class="two-column" style="margin-bottom: 3rem;">
-      <div>
-        <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
-          Search <span style="color: #BCE5F7;">Smarter</span>
-        </h2>
-        <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
-          Find videos by keywords, channels, or direct URLs. Apply time filters to discover the freshest content.
-        </p>
-      </div>
-      <div style="padding-left: 3rem;">
-        <div class="numbered-list">
-          <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
-            <span style="font-size: 18px;">Enter search criteria</span>
-          </div>
-          <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
-            <span style="font-size: 18px;">Analyze results with AI</span>
-          </div>
-          <div style="display: flex; align-items: center;">
-            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
-            <span style="font-size: 18px;">Generate content ideas</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
     
     # Clean search inputs with better spacing
     st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
@@ -1567,6 +1538,35 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
               st.markdown('</div>', unsafe_allow_html=True)
             elif analysis:
               st.error(analysis)
+# Two-column intro
+    st.markdown("""
+    <div class="two-column" style="margin-bottom: 3rem;">
+    <div>
+        <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+        Search <span style="color: #BCE5F7;">Smarter</span>
+        </h2>
+        <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+        Find videos by keywords, channels, or direct URLs. Apply time filters to discover the freshest content.
+        </p>
+    </div>
+    <div style="padding-left: 3rem;">
+        <div class="numbered-list">
+        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+            <span style="font-size: 18px;">Enter search criteria</span>
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+            <span style="font-size: 18px;">Analyze results with AI</span>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+            <span style="font-size: 18px;">Generate content ideas</span>
+        </div>
+        </div>
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
   
   with tab2:
     st.subheader("What's Trending on YouTube")
@@ -1673,35 +1673,6 @@ elif platform == "Reddit Analysis":
   </div>
   """, unsafe_allow_html=True)
   
-  # Two-column layout for intro
-  st.markdown("""
-  <div class="two-column" style="margin-bottom: 3rem;">
-    <div>
-      <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
-        Trending <span style="color: #BCE5F7;">Insights</span>
-      </h2>
-      <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
-        Monitor subreddit activity, track viral posts, and understand what drives engagement in online communities.
-      </p>
-    </div>
-    <div style="padding-left: 3rem;">
-      <div class="numbered-list">
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
-          <span style="font-size: 18px;">Select subreddit</span>
-        </div>
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
-          <span style="font-size: 18px;">Analyze top posts</span>
-        </div>
-        <div style="display: flex; align-items: center;">
-          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
-          <span style="font-size: 18px;">Export insights</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  """, unsafe_allow_html=True)
   
   # Clean input section
   st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
@@ -1836,6 +1807,37 @@ elif platform == "Reddit Analysis":
       st.error(f"❌ Could not fetch any posts from r/{subreddit_to_analyze}. Try a different subreddit.")
       st.info("**Tip:** Try these usually accessible subreddits: AskReddit, Technology, Movies")
   
+  # Two-column layout for intro
+  st.markdown("""
+  <div class="two-column" style="margin-bottom: 3rem;">
+    <div>
+      <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+        Trending <span style="color: #BCE5F7;">Insights</span>
+      </h2>
+      <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+        Monitor subreddit activity, track viral posts, and understand what drives engagement in online communities.
+      </p>
+    </div>
+    <div style="padding-left: 3rem;">
+      <div class="numbered-list">
+        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+          <span style="font-size: 18px;">Select subreddit</span>
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+          <span style="font-size: 18px;">Analyze top posts</span>
+        </div>
+        <div style="display: flex; align-items: center;">
+          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+          <span style="font-size: 18px;">Export insights</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  """, unsafe_allow_html=True)
+
+
   # Popular Subreddits - MOVED TO BOTTOM
   st.markdown("---")
   st.write("**Popular Subreddits:**")
