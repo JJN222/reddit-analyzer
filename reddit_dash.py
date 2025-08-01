@@ -288,8 +288,8 @@ p, .stMarkdown {
 # Enhanced Header with new design
 st.markdown("""
 <div class="hero-section">
-    <h1 class="hero-headline">Shorthand<br>Studios<br><span class="accent">Amplified.</span></h1>
-    <p class="tagline">Transform trending conversations into compelling content with AI-powered insights for creators and publishers.</p>
+    <h1 class="hero-headline">Shorthand<br>Studios<span class="accent">.</span></h1>
+    <p class="tagline">Transform trending topics into compelling content with AI-powered insights for creators and publishers.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1198,7 +1198,7 @@ with st.sidebar.expander("🔑 API Status", expanded=False):
 
 # ============ MAIN CONTENT ============
 
-if platform == "📺 YouTube":
+if platform == "📺 YouTube Intelligence":
     # Hero-style header
     st.markdown("""
     <div style="margin-bottom: 4rem;">
@@ -1661,7 +1661,7 @@ Provide {creator_name}'s reaction strategy:
                         if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
 
-elif platform == "🌊 Reddit":
+elif platform == "🌊 Reddit Analysis":
     # Hero-style header
     st.markdown("""
     <div style="margin-bottom: 4rem;">
