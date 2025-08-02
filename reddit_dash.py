@@ -1692,7 +1692,7 @@ creator_name = st.sidebar.text_input(
 st.sidebar.markdown("---")
 
 # Get API keys from environment variables
-api_key, youtube_api_key = get_api_keys()
+api_key, youtube_api_key, spotify_client_id, spotify_client_secret = get_api_keys()
 
 # API status - lower priority, less emphasized
 with st.sidebar.expander("🔑 API Status", expanded=False):
