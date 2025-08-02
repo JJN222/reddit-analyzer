@@ -312,7 +312,9 @@ def get_api_keys():
   """Get API keys from environment variables"""
   openai_key = os.getenv('OPENAI_API_KEY', '')
   youtube_key = os.getenv('YOUTUBE_API_KEY', '')
-  return openai_key, youtube_key
+  spotify_client_id = os.getenv('SPOTIFY_CLIENT_ID', '')
+  spotify_client_secret = os.getenv('SPOTIFY_CLIENT_SECRET', '')
+  return openai_key, youtube_key, spotify_client_id, spotify_client_secret
 
 # ============ REDDIT FUNCTIONS ============
 
@@ -1150,6 +1152,239 @@ SERIES POTENTIAL: Could this become multiple videos?"""
   except Exception as e:
     return f"AI Analysis Error: {str(e)}"
   
+# ============ SPOTIFY API FUNCTIONS ============
+
+def get_spotify_token(client_id, client_secret):
+    """Get Spotify access token using Client Credentials Flow"""
+    if not client_id or not client_secret:
+        return None
+    
+    try:
+        import base64
+        
+        # Encode credentials
+        credentials = f"{client_id}:{client_secret}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        
+        # Get token
+        url = "https://accounts.spotify.com/api/token"
+        headers = {
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        data = {
+            "grant_type": "client_credentials"
+        }
+        
+        response = requests.post(url, headers=headers, data=data)
+        
+        if response.status_code == 200:
+            return response.json()['access_token']
+        else:
+            st.error(f"❌ Spotify Auth Error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Spotify Token Error: {str(e)}")
+        return None
+
+def search_podcasts_by_genre(token, genre="all", limit=10):
+    """Get popular podcasts by genre"""
+    if not token:
+        return None
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Map user-friendly names to Spotify genre IDs
+        genre_map = {
+            "all": "",
+            "true crime": "true crime",
+            "comedy": "comedy",
+            "news": "news",
+            "sports": "sports",
+            "business": "business",
+            "health & fitness": "health & fitness",
+            "technology": "technology",
+            "society & culture": "society & culture",
+            "education": "education",
+            "arts": "arts",
+            "music": "music",
+            "tv & film": "tv & film",
+            "history": "history",
+            "science": "science",
+            "religion & spirituality": "religion & spirituality"
+        }
+        
+        # Build search query
+        if genre == "all":
+            # Search for most popular podcasts overall
+            search_query = "podcast"
+        else:
+            search_query = f"genre:{genre_map.get(genre, genre)}"
+        
+        url = "https://api.spotify.com/v1/search"
+        params = {
+            "q": search_query,
+            "type": "show",
+            "limit": limit,
+            "market": "US"
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            shows = []
+            
+            for show in data.get('shows', {}).get('items', []):
+                show_data = {
+                    'id': show['id'],
+                    'name': show['name'],
+                    'publisher': show['publisher'],
+                    'description': show['description'][:200] + '...' if len(show['description']) > 200 else show['description'],
+                    'total_episodes': show.get('total_episodes', 0),
+                    'image': show['images'][0]['url'] if show['images'] else None,
+                    'explicit': show.get('explicit', False),
+                    'url': show['external_urls']['spotify']
+                }
+                shows.append(show_data)
+            
+            return shows
+        else:
+            st.error(f"❌ Spotify Search Error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Error searching podcasts: {str(e)}")
+        return None
+
+def get_show_episodes(token, show_id, limit=10):
+    """Get recent episodes from a podcast show"""
+    if not token:
+        return None
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"https://api.spotify.com/v1/shows/{show_id}/episodes"
+        params = {
+            "limit": limit,
+            "market": "US"
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            episodes = []
+            
+            for ep in data.get('items', []):
+                episode_data = {
+                    'id': ep['id'],
+                    'name': ep['name'],
+                    'description': ep['description'][:200] + '...' if len(ep['description']) > 200 else ep['description'],
+                    'release_date': ep['release_date'],
+                    'duration_ms': ep['duration_ms'],
+                    'duration_min': ep['duration_ms'] // 60000,
+                    'url': ep['external_urls']['spotify']
+                }
+                episodes.append(episode_data)
+            
+            return episodes
+        else:
+            return None
+            
+    except Exception as e:
+        return None
+
+def search_podcasts_by_topic(token, topic, limit=20):
+    """Search for podcast episodes about a specific topic"""
+    if not token:
+        return None
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        url = "https://api.spotify.com/v1/search"
+        params = {
+            "q": topic,
+            "type": "episode",
+            "limit": limit,
+            "market": "US"
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            episodes = []
+            
+            for ep in data.get('episodes', {}).get('items', []):
+                episode_data = {
+                    'id': ep['id'],
+                    'name': ep['name'],
+                    'show_name': ep['show']['name'],
+                    'description': ep['description'][:200] + '...' if len(ep['description']) > 200 else ep['description'],
+                    'release_date': ep['release_date'],
+                    'duration_min': ep['duration_ms'] // 60000,
+                    'url': ep['external_urls']['spotify'],
+                    'image': ep['images'][0]['url'] if ep['images'] else None
+                }
+                episodes.append(episode_data)
+            
+            return episodes
+        else:
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Error searching episodes: {str(e)}")
+        return None
+
+def get_new_episodes_today(token, limit=20):
+    """Get podcast episodes released today"""
+    if not token:
+        return None
+    
+    # Search for episodes with today's date
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        url = "https://api.spotify.com/v1/search"
+        params = {
+            "q": f"tag:new",  # This gets recently added content
+            "type": "episode",
+            "limit": limit,
+            "market": "US"
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            episodes = []
+            
+            for ep in data.get('episodes', {}).get('items', []):
+                # Filter for today's episodes
+                if ep['release_date'] == today:
+                    episode_data = {
+                        'id': ep['id'],
+                        'name': ep['name'],
+                        'show_name': ep['show']['name'],
+                        'description': ep['description'][:200] + '...' if len(ep['description']) > 200 else ep['description'],
+                        'release_date': ep['release_date'],
+                        'duration_min': ep['duration_ms'] // 60000,
+                        'url': ep['external_urls']['spotify'],
+                        'image': ep['images'][0]['url'] if ep['images'] else None
+                    }
+                    episodes.append(episode_data)
+            
+            return episodes
+        else:
+            return None
+            
+    except Exception as e:
+        return None
+  
 # ============ GOOGLE TRENDS FUNCTIONS ============
 
 def get_trending_searches(region='united_states'):
@@ -1436,7 +1671,7 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
   "Choose Platform",
-  ["Reddit Analysis", "YouTube Intelligence", "Wikipedia Trends"],
+  ["Reddit Analysis", "YouTube Intelligence", "Wikipedia Trends", "Podcast Trends"],
   key="platform_select"
 )
 
@@ -1960,6 +2195,151 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 
                 if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                     st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+
+elif platform == "Podcast Trends":
+    # Get Spotify credentials
+    _, _, spotify_client_id, spotify_client_secret = get_api_keys()
+    
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+            Podcast <span style="color: #BCE5F7;">Trends</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+            Discover trending podcasts, find episodes about specific topics, and track what's popular in audio content.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Get Spotify token
+    if spotify_client_id and spotify_client_secret:
+        if 'spotify_token' not in st.session_state or st.button("🔄 Refresh Token", key="refresh_spotify"):
+            with st.spinner("Authenticating with Spotify..."):
+                token = get_spotify_token(spotify_client_id, spotify_client_secret)
+                if token:
+                    st.session_state.spotify_token = token
+                    st.success("✅ Connected to Spotify")
+    else:
+        st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
+        st.stop()
+    
+    # Navigation tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TODAY'S EPISODES", "THIS WEEK'S POPULAR"])
+    
+    with tab1:
+        st.markdown("### 🎙️ Top Podcasts by Genre")
+        
+        # Genre selection
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            genre = st.selectbox(
+                "Select Genre",
+                ["all", "true crime", "comedy", "news", "sports", "business", 
+                 "health & fitness", "technology", "society & culture", "education",
+                 "arts", "music", "tv & film", "history", "science", "religion & spirituality"],
+                key="podcast_genre"
+            )
+        
+        with col2:
+            limit = st.number_input("Show top", min_value=5, max_value=50, value=10, key="podcast_limit")
+        
+        if st.button("Get Top Podcasts", key="get_top_podcasts", type="primary"):
+            if 'spotify_token' in st.session_state:
+                with st.spinner(f"Fetching top {genre} podcasts..."):
+                    shows = search_podcasts_by_genre(st.session_state.spotify_token, genre, limit)
+                    if shows:
+                        st.session_state.top_podcasts = shows
+                        st.success(f"✅ Found top {len(shows)} {genre} podcasts")
+        
+        # Display results
+        if 'top_podcasts' in st.session_state:
+            for i, show in enumerate(st.session_state.top_podcasts, 1):
+                with st.expander(f"{i:02d} | 🎙️ {show['name']} by {show['publisher']}", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if show['image']:
+                            st.image(show['image'], width=150)
+                    
+                    with col2:
+                        st.write(f"**Episodes:** {show['total_episodes']}")
+                        st.write(f"**Description:** {show['description']}")
+                        if show['explicit']:
+                            st.write("⚠️ Explicit Content")
+                        st.write(f"[Listen on Spotify]({show['url']})")
+                    
+                    # Get recent episodes button
+                    if st.button(f"Show Recent Episodes", key=f"episodes_{show['id']}"):
+                        with st.spinner("Fetching episodes..."):
+                            episodes = get_show_episodes(st.session_state.spotify_token, show['id'], 5)
+                            if episodes:
+                                st.session_state[f"episodes_{show['id']}"] = episodes
+                    
+                    # Display episodes if fetched
+                    if f"episodes_{show['id']}" in st.session_state:
+                        st.write("**Recent Episodes:**")
+                        for ep in st.session_state[f"episodes_{show['id']}"]:
+                            st.write(f"📻 **{ep['name']}** ({ep['duration_min']} min)")
+                            st.write(f"   Released: {ep['release_date']}")
+                            st.write(f"   {ep['description']}")
+                            st.write(f"   [Listen]({ep['url']})")
+                            st.write("---")
+    
+    with tab2:
+        st.markdown("### 🔍 Search Podcasts by Topic")
+        
+        # Topic search
+        search_topic = st.text_input(
+            "Enter topic or current event",
+            placeholder="e.g., 'Taylor Swift', 'Presidential Election', 'AI Technology'",
+            key="topic_search"
+        )
+        
+        if st.button("Search Episodes", key="search_topic_btn", type="primary") and search_topic:
+            if 'spotify_token' in st.session_state:
+                with st.spinner(f"Searching for episodes about '{search_topic}'..."):
+                    episodes = search_podcasts_by_topic(st.session_state.spotify_token, search_topic)
+                    if episodes:
+                        st.session_state.topic_results = episodes
+                        st.success(f"✅ Found {len(episodes)} episodes about '{search_topic}'")
+        
+        # Display topic results
+        if 'topic_results' in st.session_state:
+            for i, ep in enumerate(st.session_state.topic_results, 1):
+                with st.expander(f"{i:02d} | {ep['name']} - {ep['show_name']}", expanded=False):
+                    if ep['image']:
+                        st.image(ep['image'], width=200)
+                    
+                    st.write(f"**Released:** {ep['release_date']}")
+                    st.write(f"**Duration:** {ep['duration_min']} minutes")
+                    st.write(f"**Description:** {ep['description']}")
+                    st.write(f"[Listen on Spotify]({ep['url']})")
+    
+    with tab3:
+        st.markdown("### 📅 Today's New Episodes")
+        
+        if st.button("Get Today's Episodes", key="get_today", type="primary"):
+            if 'spotify_token' in st.session_state:
+                with st.spinner("Fetching today's new episodes..."):
+                    episodes = get_new_episodes_today(st.session_state.spotify_token)
+                    if episodes:
+                        st.session_state.today_episodes = episodes
+                        st.success(f"✅ Found {len(episodes)} episodes released today")
+                    else:
+                        st.info("No new episodes found for today yet. Check back later!")
+        
+        # Display today's episodes
+        if 'today_episodes' in st.session_state:
+            for i, ep in enumerate(st.session_state.today_episodes, 1):
+                with st.expander(f"{ep['name']} - {ep['show_name']}", expanded=False):
+                    st.write(f"**Duration:** {ep['duration_min']} minutes")
+                    st.write(f"**Description:** {ep['description']}")
+                    st.write(f"[Listen on Spotify]({ep['url']})")
+    
+    with tab4:
+        st.markdown("### 📈 This Week's Popular Episodes")
+        st.info("Coming soon: Track the most popular episodes from the past week")
 
 elif platform == "Wikipedia Trends":
     # Hero-style header
