@@ -1262,7 +1262,7 @@ def search_podcasts_by_genre(token, genre="all", limit=10):
 def get_show_episodes(token, show_id, limit=10):
     """Get recent episodes from a podcast show"""
     if not token:
-        return None
+        return []  # <- Return empty list instead of None
     
     try:
         headers = {"Authorization": f"Bearer {token}"}
@@ -1292,10 +1292,10 @@ def get_show_episodes(token, show_id, limit=10):
             
             return episodes
         else:
-            return None
+            return []  # <- Return empty list
             
     except Exception as e:
-        return None
+        return []  # <- Return empty list
 
 def search_podcasts_by_topic(token, topic, limit=20):
     """Search for podcast episodes about a specific topic"""
@@ -2199,6 +2199,11 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret = get_api_keys()
+    
+    # DEBUG: Check what we're getting
+    st.write(f"DEBUG - Client ID exists: {bool(spotify_client_id)}")
+    st.write(f"DEBUG - Client Secret exists: {bool(spotify_client_secret)}")
+    st.write(f"DEBUG - Client ID length: {len(spotify_client_id) if spotify_client_id else 0}")
     
     # Hero-style header
     st.markdown("""
