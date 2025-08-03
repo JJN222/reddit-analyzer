@@ -1196,40 +1196,28 @@ def search_podcasts_by_genre(token, genre="all", limit=10):
     try:
         headers = {"Authorization": f"Bearer {token}"}
         
-        # Map user-friendly names to Spotify genre IDs
-        genre_map = {
-            "all": "",
-            "true crime": "true crime",
-            "comedy": "comedy",
-            "news": "news",
-            "sports": "sports",
-            "business": "business",
-            "health & fitness": "health & fitness",
-            "technology": "technology",
-            "society & culture": "society & culture",
-            "education": "education",
-            "arts": "arts",
-            "music": "music",
-            "tv & film": "tv & film",
-            "history": "history",
-            "science": "science",
-            "religion & spirituality": "religion & spirituality"
-        }
-        
-        # Build search query
+        # Build search query based on genre
         if genre == "all":
-            # Search for most popular podcasts overall
-            search_query = "podcast"
+            # For 'all', search for popular podcast shows
+            search_query = "year:2024-2025"  # Recent podcasts
+            params = {
+                "q": search_query,
+                "type": "show",
+                "limit": 50,  # Get more results to filter from
+                "market": "US"
+            }
         else:
-            search_query = f"genre:{genre_map.get(genre, genre)}"
+            # For specific genres, use the genre in the search
+            # Remove the "genre:" prefix as it's not supported for shows
+            search_query = genre
+            params = {
+                "q": search_query,
+                "type": "show", 
+                "limit": 50,  # Get more results to filter from
+                "market": "US"
+            }
         
         url = "https://api.spotify.com/v1/search"
-        params = {
-            "q": search_query,
-            "type": "show",
-            "limit": limit,
-            "market": "US"
-        }
         
         response = requests.get(url, headers=headers, params=params)
         
@@ -1237,7 +1225,14 @@ def search_podcasts_by_genre(token, genre="all", limit=10):
             data = response.json()
             shows = []
             
-            for show in data.get('shows', {}).get('items', []):
+            items = data.get('shows', {}).get('items', [])
+            
+            # If we have items, process them
+            for show in items[:limit]:  # Limit to requested number
+                # Skip if no images
+                if not show.get('images'):
+                    continue
+                    
                 show_data = {
                     'id': show['id'],
                     'name': show['name'],
@@ -1250,9 +1245,40 @@ def search_podcasts_by_genre(token, genre="all", limit=10):
                 }
                 shows.append(show_data)
             
+            # If no results found with genre search, try a different approach
+            if not shows and genre != "all":
+                # Try searching for "<genre> podcast"
+                search_query = f"{genre} podcast"
+                params['q'] = search_query
+                
+                response = requests.get(url, headers=headers, params=params)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    items = data.get('shows', {}).get('items', [])
+                    
+                    for show in items[:limit]:
+                        if not show.get('images'):
+                            continue
+                            
+                        show_data = {
+                            'id': show['id'],
+                            'name': show['name'],
+                            'publisher': show['publisher'],
+                            'description': show['description'][:200] + '...' if len(show['description']) > 200 else show['description'],
+                            'total_episodes': show.get('total_episodes', 0),
+                            'image': show['images'][0]['url'] if show['images'] else None,
+                            'explicit': show.get('explicit', False),
+                            'url': show['external_urls']['spotify']
+                        }
+                        shows.append(show_data)
+            
             return shows
         else:
             st.error(f"❌ Spotify Search Error: {response.status_code}")
+            # Try to get error details
+            if response.text:
+                st.error(f"Error details: {response.text}")
             return None
             
     except Exception as e:
@@ -2217,17 +2243,22 @@ elif platform == "Podcast Trends":
     </div>
     """, unsafe_allow_html=True)
     
-    # Get Spotify token
-    if spotify_client_id and spotify_client_secret:
-        if 'spotify_token' not in st.session_state or st.button("🔄 Refresh Token", key="refresh_spotify"):
-            with st.spinner("Authenticating with Spotify..."):
-                token = get_spotify_token(spotify_client_id, spotify_client_secret)
-                if token:
-                    st.session_state.spotify_token = token
-                    st.success("✅ Connected to Spotify")
-    else:
-        st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
-        st.stop()
+# Get Spotify token
+if spotify_client_id and spotify_client_secret:
+    if 'spotify_token' not in st.session_state or st.button("🔄 Refresh Token", key="refresh_spotify"):
+        with st.spinner("Authenticating with Spotify..."):
+            token = get_spotify_token(spotify_client_id, spotify_client_secret)
+            if token:
+                st.session_state.spotify_token = token
+                st.success("✅ Connected to Spotify")
+else:
+    st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
+    st.stop()
+
+# Add debug mode here - RIGHT AFTER the token section
+if st.checkbox("Debug Mode", key="spotify_debug"):
+    st.write(f"Token exists: {bool(st.session_state.get('spotify_token'))}")
+    st.write(f"Token preview: {st.session_state.spotify_token[:10]}..." if st.session_state.get('spotify_token') else "No token")
     
     # Navigation tabs
     tab1, tab2, tab3, tab4 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TODAY'S EPISODES", "THIS WEEK'S POPULAR"])
