@@ -2243,22 +2243,22 @@ elif platform == "Podcast Trends":
     </div>
     """, unsafe_allow_html=True)
     
-# Get Spotify token
-if spotify_client_id and spotify_client_secret:
-    if 'spotify_token' not in st.session_state or st.button("🔄 Refresh Token", key="refresh_spotify"):
-        with st.spinner("Authenticating with Spotify..."):
-            token = get_spotify_token(spotify_client_id, spotify_client_secret)
-            if token:
-                st.session_state.spotify_token = token
-                st.success("✅ Connected to Spotify")
-else:
-    st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
-    st.stop()
+    # Get Spotify token
+    if spotify_client_id and spotify_client_secret:
+        if 'spotify_token' not in st.session_state or st.button("🔄 Refresh Token", key="refresh_spotify"):
+            with st.spinner("Authenticating with Spotify..."):
+                token = get_spotify_token(spotify_client_id, spotify_client_secret)
+                if token:
+                    st.session_state.spotify_token = token
+                    st.success("✅ Connected to Spotify")
+    else:
+        st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
+        st.stop()
 
-# Add debug mode here - RIGHT AFTER the token section
-if st.checkbox("Debug Mode", key="spotify_debug"):
-    st.write(f"Token exists: {bool(st.session_state.get('spotify_token'))}")
-    st.write(f"Token preview: {st.session_state.spotify_token[:10]}..." if st.session_state.get('spotify_token') else "No token")
+    # Add debug mode here - RIGHT AFTER the token section
+    if st.checkbox("Debug Mode", key="spotify_debug"):
+        st.write(f"Token exists: {bool(st.session_state.get('spotify_token'))}")
+        st.write(f"Token preview: {st.session_state.spotify_token[:10]}..." if st.session_state.get('spotify_token') else "No token")
     
     # Navigation tabs
     tab1, tab2, tab3, tab4 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TODAY'S EPISODES", "THIS WEEK'S POPULAR"])
