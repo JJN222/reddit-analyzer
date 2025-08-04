@@ -1345,17 +1345,19 @@ def search_podcasts_by_topic(token, topic, limit=20):
             data = response.json()
             episodes = []
             
-            for ep in data.get('episodes', {}).get('items', []):
-                # The show data might be in different places
+            # Debug: Check first episode structure
+            items = data.get('episodes', {}).get('items', [])
+            if items:
+                st.write("DEBUG - First episode data keys:", items[0].keys())
+                if 'show' in items[0]:
+                    st.write("DEBUG - Show data:", items[0]['show'])
+            
+            for ep in items:
+                # The show data should be in ep['show']
                 show_name = "Unknown Show"
                 
-                # Try to get show name from different possible locations
-                if 'show' in ep and ep['show']:
+                if 'show' in ep and isinstance(ep['show'], dict):
                     show_name = ep['show'].get('name', 'Unknown Show')
-                
-                # Sometimes it might be directly in the episode
-                if show_name == "Unknown Show" and 'show_name' in ep:
-                    show_name = ep['show_name']
                 
                 episode_data = {
                     'id': ep.get('id', ''),
@@ -1377,7 +1379,7 @@ def search_podcasts_by_topic(token, topic, limit=20):
     except Exception as e:
         st.error(f"❌ Error searching episodes: {str(e)}")
         return None
-
+    
 def get_new_episodes_today(token, limit=20):
     """Get podcast episodes released today"""
     if not token:
