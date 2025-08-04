@@ -1347,42 +1347,56 @@ def search_podcasts_by_topic(token, topic, limit=20):
             
             items = data.get('episodes', {}).get('items', [])
             
-            # Very visible debug
-            st.warning(f"DEBUG: Found {len(items)} episodes")
-            if items and len(items) > 0:
-                st.json(items[0])  # This will show the entire first episode object
+            # First, collect all episodes with their show IDs
+            episode_list = []
+            show_ids = set()
             
             for ep in items:
-                # Try multiple ways to get show name
-                show_name = "Unknown Show"
-                
-                # Method 1: Standard location
-                if 'show' in ep and ep['show'] is not None:
-                    show_name = ep['show'].get('name', 'Unknown Show')
+                # Extract show ID from the episode href
+                # The href looks like: "https://api.spotify.com/v1/episodes/6FjEzvYK4hXVhV1X5hh2XP"
+                # We need to get the show ID by fetching the full episode details
+                episode_id = ep.get('id', '')
                 
                 episode_data = {
-                    'id': ep.get('id', ''),
+                    'id': episode_id,
                     'name': ep.get('name', 'Unknown Episode'),
-                    'show_name': show_name,
                     'description': ep.get('description', '')[:200] + '...' if len(ep.get('description', '')) > 200 else ep.get('description', ''),
                     'release_date': ep.get('release_date', 'Unknown'),
                     'duration_min': ep.get('duration_ms', 0) // 60000,
                     'url': ep.get('external_urls', {}).get('spotify', ''),
-                    'image': ep.get('images', [{}])[0].get('url', '') if ep.get('images') else None
+                    'image': ep.get('images', [{}])[0].get('url', '') if ep.get('images') else None,
+                    'show_id': None,
+                    'show_name': 'Loading...'
                 }
-                episodes.append(episode_data)
+                episode_list.append(episode_data)
             
-            return episodes
+            # Now fetch full episode details to get show IDs
+            for i, ep_data in enumerate(episode_list):
+                if ep_data['id']:
+                    ep_url = f"https://api.spotify.com/v1/episodes/{ep_data['id']}"
+                    ep_response = requests.get(ep_url, headers=headers, params={"market": "US"})
+                    
+                    if ep_response.status_code == 200:
+                        full_episode = ep_response.json()
+                        if 'show' in full_episode:
+                            show_id = full_episode['show'].get('id')
+                            show_name = full_episode['show'].get('name', 'Unknown Show')
+                            episode_list[i]['show_id'] = show_id
+                            episode_list[i]['show_name'] = show_name
+                        
+                        # Small delay to respect rate limits
+                        time.sleep(0.1)
+            
+            return episode_list
+            
         else:
             st.error(f"❌ Spotify Episode Search Error: {response.status_code}")
             return None
             
     except Exception as e:
         st.error(f"❌ Error searching episodes: {str(e)}")
-        import traceback
-        st.error(traceback.format_exc())
         return None
-        
+            
 def get_new_episodes_today(token, limit=20):
     """Get podcast episodes released today"""
     if not token:
@@ -2380,7 +2394,13 @@ elif platform == "Podcast Trends":
         # Display topic results
         if 'topic_results' in st.session_state:
             for i, ep in enumerate(st.session_state.topic_results, 1):
-                with st.expander(f"{i:02d} | {ep['name']} - {ep['show_name']}", expanded=False):
+                # Show episode name with show name if available
+                if ep.get('show_name') and ep['show_name'] != 'Loading...':
+                    display_title = f"{ep['name']} - {ep['show_name']}"
+                else:
+                    display_title = ep['name']
+                    
+                with st.expander(f"{i:02d} | {display_title}", expanded=False):
                     if ep['image']:
                         st.image(ep['image'], width=200)
                     
@@ -2388,7 +2408,7 @@ elif platform == "Podcast Trends":
                     st.write(f"**Duration:** {ep['duration_min']} minutes")
                     st.write(f"**Description:** {ep['description']}")
                     st.write(f"[Listen on Spotify]({ep['url']})")
-    
+
     with tab3:
         st.markdown("### 📅 Today's New Episodes")
         
