@@ -1346,20 +1346,24 @@ def search_podcasts_by_topic(token, topic, limit=20):
             episodes = []
             
             for ep in data.get('episodes', {}).get('items', []):
+                # Handle the nested show information more carefully
+                show_info = ep.get('show', {})
+                
                 episode_data = {
                     'id': ep['id'],
                     'name': ep['name'],
-                    'show_name': ep['show']['name'],
-                    'description': ep['description'][:200] + '...' if len(ep['description']) > 200 else ep['description'],
+                    'show_name': show_info.get('name', 'Unknown Show'),  # Safer access
+                    'description': ep['description'][:200] + '...' if len(ep.get('description', '')) > 200 else ep.get('description', ''),
                     'release_date': ep['release_date'],
-                    'duration_min': ep['duration_ms'] // 60000,
+                    'duration_min': ep.get('duration_ms', 0) // 60000,
                     'url': ep['external_urls']['spotify'],
-                    'image': ep['images'][0]['url'] if ep['images'] else None
+                    'image': ep['images'][0]['url'] if ep.get('images') else None
                 }
                 episodes.append(episode_data)
             
             return episodes
         else:
+            st.error(f"❌ Spotify Episode Search Error: {response.status_code}")
             return None
             
     except Exception as e:
