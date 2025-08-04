@@ -2542,13 +2542,17 @@ elif platform == "Movie & TV Trends":
         # Optional year filter
         col1, col2 = st.columns([1, 2])
         with col1:
-            year_filter = st.number_input(
-            "Year (optional - set to current year to disable)",
-            min_value=1900,
-            max_value=datetime.now().year + 1,
-            value=datetime.now().year,  # Default to current year
-            key="year_filter"
-        )
+            use_year_filter = st.checkbox("Filter by year", key="use_year_discover")
+            if use_year_filter:
+                year_filter = st.number_input(
+                    "Year",
+                    min_value=1900,
+                    max_value=datetime.now().year + 1,
+                    value=datetime.now().year,
+                    key="year_filter"
+                )
+            else:
+                year_filter = None
         
         if st.button("🎬 Get Trending", key="get_trending", type="primary"):
             with st.spinner(f"Fetching trending {media_type}s..."):
@@ -2647,17 +2651,21 @@ elif platform == "Movie & TV Trends":
             )
         
         with col2:
-            search_year = st.number_input(
-                "Year (optional - set to current year to disable)",
-                min_value=1900,
-                max_value=datetime.now().year + 1,
-                value=datetime.now().year,
-                key="search_year"
-            )
+            use_search_year = st.checkbox("Filter by year", key="use_year_search")
+            if use_search_year:
+                search_year = st.number_input(
+                    "Year",
+                    min_value=1900,
+                    max_value=datetime.now().year + 1,
+                    value=datetime.now().year,
+                    key="search_year"
+                )
+            else:
+                search_year = None
         
         if st.button("🔍 Search", key="search_titles", type="primary") and search_query:
             with st.spinner(f"Searching for '{search_query}'..."):
-                year = None if search_year == datetime.now().year else search_year
+                year = search_year if use_search_year else None
                 results = search_tmdb(tmdb_key, query=search_query, media_type=search_media_type, year=year)
                 
                 if results and results.get('results'):
@@ -2769,19 +2777,23 @@ elif platform == "Movie & TV Trends":
                 )
             
             with col3:
-                company_year = st.number_input(
-                    "Year (optional)",
-                    min_value=1900,
-                    max_value=datetime.now().year + 1,
-                    value=datetime.now().year,
-                    key="company_year_filter"
-                )
+                use_company_year = st.checkbox("Filter by year", key="use_year_company")
+                if use_company_year:
+                    company_year = st.number_input(
+                        "Year",
+                        min_value=1900,
+                        max_value=datetime.now().year + 1,
+                        value=datetime.now().year,
+                        key="company_year_filter"
+                    )
+                else:
+                    company_year = None
             
             # Get content button
             if st.button(f"🎬 Get Content", key="get_company_content", type="primary"):
                 selected_company_name = dict(company_options).get(selected_company_id, "Unknown")
                 with st.spinner(f"Fetching {company_media_type}s from {selected_company_name}..."):
-                    year = None if company_year == datetime.now().year else company_year
+                    year = company_year if use_company_year else None
                     results = search_tmdb(
                         tmdb_key, 
                         media_type=company_media_type, 
