@@ -2242,21 +2242,15 @@ elif platform == "Podcast Trends":
     
     # Get Spotify token
     if spotify_client_id and spotify_client_secret:
-        if 'spotify_token' not in st.session_state or st.button("🔄 Refresh Token", key="refresh_spotify"):
+        if 'spotify_token' not in st.session_state:
             with st.spinner("Authenticating with Spotify..."):
                 token = get_spotify_token(spotify_client_id, spotify_client_secret)
                 if token:
                     st.session_state.spotify_token = token
-                    st.success("✅ Connected to Spotify")
     else:
         st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
         st.stop()
 
-    # Add debug mode here - RIGHT AFTER the token section
-    if st.checkbox("Debug Mode", key="spotify_debug"):
-        st.write(f"Token exists: {bool(st.session_state.get('spotify_token'))}")
-        st.write(f"Token preview: {st.session_state.spotify_token[:10]}..." if st.session_state.get('spotify_token') else "No token")
-    
     # Navigation tabs
     tab1, tab2, tab3, tab4 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TODAY'S EPISODES", "THIS WEEK'S POPULAR"])
     
@@ -2266,11 +2260,35 @@ elif platform == "Podcast Trends":
         # Genre selection
         col1, col2 = st.columns([3, 1])
         with col1:
+            # Define genres with proper display names
+            genre_options = [
+                ("all", "All"),
+                ("comedy", "Comedy"),
+                ("news", "News"),
+                ("sports", "Sports"),
+                ("business", "Business"),
+                ("true crime", "True Crime"),
+                ("health & fitness", "Health & Fitness"),
+                ("technology", "Technology"),
+                ("society & culture", "Society & Culture"),
+                ("education", "Education"),
+                ("arts", "Arts"),
+                ("music", "Music"),
+                ("tv & film", "TV & Film"),
+                ("history", "History"),
+                ("science", "Science"),
+                ("religion & spirituality", "Religion & Spirituality")
+            ]
+            
+            # Create display names and values
+            genre_display = [display for value, display in genre_options]
+            genre_values = [value for value, display in genre_options]
+            
+            # Use format_func to show title case but keep lowercase values
             genre = st.selectbox(
                 "Select Genre",
-                ["all", "true crime", "comedy", "news", "sports", "business", 
-                 "health & fitness", "technology", "society & culture", "education",
-                 "arts", "music", "tv & film", "history", "science", "religion & spirituality"],
+                options=genre_values,
+                format_func=lambda x: dict(genre_options).get(x, x),
                 key="podcast_genre"
             )
         
@@ -2303,17 +2321,18 @@ elif platform == "Podcast Trends":
                         st.write(f"[Listen on Spotify]({show['url']})")
                     
                     # Get recent episodes button
-                    if st.button(f"Show Recent Episodes", key=f"episodes_{show['id']}"):
+                    if st.button(f"Show Recent Episodes", key=f"btn_episodes_{show['id']}"):  # Changed key
                         with st.spinner("Fetching episodes..."):
                             episodes = get_show_episodes(st.session_state.spotify_token, show['id'], 5)
                             if episodes:
-                                st.session_state[f"episodes_{show['id']}"] = episodes
+                                st.session_state[f"episodes_data_{show['id']}"] = episodes  # Changed key
+
                     
                     # Display episodes if fetched
-                    if f"episodes_{show['id']}" in st.session_state:
+                    if f"episodes_data_{show['id']}" in st.session_state:  # Changed key
                         st.write("**Recent Episodes:**")
-                        episodes = st.session_state[f"episodes_{show['id']}"]
-                        if episodes and isinstance(episodes, list):  # Add this check
+                        episodes = st.session_state[f"episodes_data_{show['id']}"]  # Changed key
+                        if episodes and isinstance(episodes, list):
                             for ep in episodes:
                                 st.write(f"📻 **{ep['name']}** ({ep['duration_min']} min)")
                                 st.write(f"   Released: {ep['release_date']}")
