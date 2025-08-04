@@ -574,7 +574,7 @@ Important: Base your analysis on {creator_name}'s actual known personality, poli
 
   try:
     response = openai.ChatCompletion.create(
-      model="gpt-3.5-turbo",
+      model="gpt-4.1-nano",
       messages=[{"role": "user", "content": creator_prompt}],
       max_tokens=600,
       timeout=20
@@ -1157,7 +1157,7 @@ Focus on what the audience is actually saying and how {creator_name} could use t
   
   try:
     response = openai.ChatCompletion.create(
-      model="gpt-3.5-turbo",
+      model="gpt-4.1-nano",
       messages=[{"role": "user", "content": prompt}],
       max_tokens=800,
       timeout=30
@@ -1197,7 +1197,7 @@ SERIES POTENTIAL: Could this become multiple videos?"""
   
   try:
     response = openai.ChatCompletion.create(
-      model="gpt-3.5-turbo",
+      model="gpt-4.1-nano",
       messages=[{"role": "user", "content": prompt}],
       max_tokens=800,
       timeout=30
@@ -1599,7 +1599,7 @@ Provide a comprehensive content strategy for {creator_name}:
     
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1-nano",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=800,
             timeout=30
@@ -1806,7 +1806,7 @@ CONTROVERSY/DISCUSSION POINTS: What aspects would generate the most engagement a
     
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1-nano",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=800,
             timeout=30
@@ -2146,7 +2146,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
                     openai.api_key = api_key
                     
                     response = openai.ChatCompletion.create(
-                      model="gpt-3.5-turbo",
+                      model="gpt-4.1-nano",
                       messages=[{"role": "user", "content": reaction_prompt}],
                       max_tokens=700,
                       timeout=30
@@ -2330,7 +2330,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
                                 openai.api_key = api_key
                                 
                                 response = openai.ChatCompletion.create(
-                                    model="gpt-3.5-turbo",
+                                    model="gpt-4.1-nano",
                                     messages=[{"role": "user", "content": reaction_prompt}],
                                     max_tokens=700,
                                     timeout=30

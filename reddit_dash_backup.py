@@ -6,11 +6,64 @@ import time
 import openai
 import os
 
+# Password Protection System
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == os.getenv('APP_PASSWORD', 'defaultpassword'):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for password
+        st.markdown("""
+        <div style="margin-top: 100px; text-align: center;">
+            <h1 style="font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; text-transform: uppercase;">
+                Shorthand Studios <span style="color: #BCE5F7;">Login</span>
+            </h1>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.text_input(
+                "Enter Password", type="password", on_change=password_entered, key="password"
+            )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error
+        st.markdown("""
+        <div style="margin-top: 100px; text-align: center;">
+            <h1 style="font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; text-transform: uppercase;">
+                Shorthand Studios <span style="color: #BCE5F7;">Login</span>
+            </h1>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.text_input(
+                "Enter Password", type="password", on_change=password_entered, key="password"
+            )
+            st.error("😕 Password incorrect")
+        return False
+    else:
+        # Password correct
+        return True
+
 # Configure Streamlit page
 st.set_page_config(
   page_title="Shorthand Studios - Content Intelligence Platform",
   layout="wide"
 )
+
+# Check password before showing any content
+if not check_password():
+    st.stop()
 
 # Enhanced CSS for Shorthand Studios website styling
 st.markdown("""
@@ -312,7 +365,10 @@ def get_api_keys():
   """Get API keys from environment variables"""
   openai_key = os.getenv('OPENAI_API_KEY', '')
   youtube_key = os.getenv('YOUTUBE_API_KEY', '')
-  return openai_key, youtube_key
+  spotify_client_id = os.getenv('SPOTIFY_CLIENT_ID', '')
+  spotify_client_secret = os.getenv('SPOTIFY_CLIENT_SECRET', '')
+  tmdb_key = os.getenv('TMDB_API_KEY', '')
+  return openai_key, youtube_key, spotify_client_id, spotify_client_secret, tmdb_key
 
 # ============ REDDIT FUNCTIONS ============
 
@@ -1149,7 +1205,616 @@ SERIES POTENTIAL: Could this become multiple videos?"""
     return response.choices[0].message.content
   except Exception as e:
     return f"AI Analysis Error: {str(e)}"
+  
+# ============ SPOTIFY API FUNCTIONS ============
 
+def get_spotify_token(client_id, client_secret):
+    """Get Spotify access token using Client Credentials Flow"""
+    if not client_id or not client_secret:
+        return None
+    
+    try:
+        import base64
+        
+        # Encode credentials
+        credentials = f"{client_id}:{client_secret}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        
+        # Get token
+        url = "https://accounts.spotify.com/api/token"
+        headers = {
+            "Authorization": f"Basic {encoded_credentials}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        data = {
+            "grant_type": "client_credentials"
+        }
+        
+        response = requests.post(url, headers=headers, data=data)
+        
+        if response.status_code == 200:
+            return response.json()['access_token']
+        else:
+            st.error(f"❌ Spotify Auth Error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Spotify Token Error: {str(e)}")
+        return None
+
+def search_podcasts_by_genre(token, genre="all", limit=10):
+    """Get popular podcasts by genre"""
+    if not token:
+        return None
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Build search query based on genre
+        if genre == "all":
+            # For 'all', search for popular podcast shows
+            search_query = "podcast"  # Simple generic search
+            params = {
+                "q": search_query,
+                "type": "show",
+                "limit": 50,  # Get more results to filter from
+                "market": "US"
+            }
+
+        else:
+            # For specific genres, use the genre in the search
+            # Remove the "genre:" prefix as it's not supported for shows
+            search_query = genre
+            params = {
+                "q": search_query,
+                "type": "show", 
+                "limit": 50,  # Get more results to filter from
+                "market": "US"
+            }
+        
+        url = "https://api.spotify.com/v1/search"
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            shows = []
+            
+            items = data.get('shows', {}).get('items', [])
+            
+            # If we have items, process them
+            for show in items[:limit]:  # Limit to requested number
+                # Skip if no images
+                if not show.get('images'):
+                    continue
+                    
+                show_data = {
+                    'id': show['id'],
+                    'name': show['name'],
+                    'publisher': show['publisher'],
+                    'description': show['description'][:200] + '...' if len(show['description']) > 200 else show['description'],
+                    'total_episodes': show.get('total_episodes', 0),
+                    'image': show['images'][0]['url'] if show['images'] else None,
+                    'explicit': show.get('explicit', False),
+                    'url': show['external_urls']['spotify']
+                }
+                shows.append(show_data)
+            
+            # If no results found with genre search, try a different approach
+            if not shows and genre != "all":
+                # Try searching for "<genre> podcast"
+                search_query = f"{genre} podcast"
+                params['q'] = search_query
+                
+                response = requests.get(url, headers=headers, params=params)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    items = data.get('shows', {}).get('items', [])
+                    
+                    for show in items[:limit]:
+                        if not show.get('images'):
+                            continue
+                            
+                        show_data = {
+                            'id': show['id'],
+                            'name': show['name'],
+                            'publisher': show['publisher'],
+                            'description': show['description'][:200] + '...' if len(show['description']) > 200 else show['description'],
+                            'total_episodes': show.get('total_episodes', 0),
+                            'image': show['images'][0]['url'] if show['images'] else None,
+                            'explicit': show.get('explicit', False),
+                            'url': show['external_urls']['spotify']
+                        }
+                        shows.append(show_data)
+            
+            return shows
+        else:
+            st.error(f"❌ Spotify Search Error: {response.status_code}")
+            # Try to get error details
+            if response.text:
+                st.error(f"Error details: {response.text}")
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Error searching podcasts: {str(e)}")
+        return None
+
+def get_show_episodes(token, show_id, limit=10):
+    """Get recent episodes from a podcast show"""
+    if not token:
+        return []  # <- Return empty list instead of None
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"https://api.spotify.com/v1/shows/{show_id}/episodes"
+        params = {
+            "limit": limit,
+            "market": "US"
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            episodes = []
+            
+            for ep in data.get('items', []):
+                episode_data = {
+                    'id': ep['id'],
+                    'name': ep['name'],
+                    'description': ep['description'][:200] + '...' if len(ep['description']) > 200 else ep['description'],
+                    'release_date': ep['release_date'],
+                    'duration_ms': ep['duration_ms'],
+                    'duration_min': ep['duration_ms'] // 60000,
+                    'url': ep['external_urls']['spotify']
+                }
+                episodes.append(episode_data)
+            
+            return episodes
+        else:
+            return []  # <- Return empty list
+            
+    except Exception as e:
+        return []  # <- Return empty list
+
+def search_podcasts_by_topic(token, topic, limit=20):
+    """Search for podcast episodes about a specific topic"""
+    if not token:
+        return None
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        url = "https://api.spotify.com/v1/search"
+        params = {
+            "q": topic,
+            "type": "episode",
+            "limit": limit,
+            "market": "US"
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            episodes = []
+            
+            items = data.get('episodes', {}).get('items', [])
+            
+            # First, collect all episodes with their show IDs
+            episode_list = []
+            show_ids = set()
+            
+            for ep in items:
+                # Extract show ID from the episode href
+                # The href looks like: "https://api.spotify.com/v1/episodes/6FjEzvYK4hXVhV1X5hh2XP"
+                # We need to get the show ID by fetching the full episode details
+                episode_id = ep.get('id', '')
+                
+                episode_data = {
+                    'id': episode_id,
+                    'name': ep.get('name', 'Unknown Episode'),
+                    'description': ep.get('description', '')[:200] + '...' if len(ep.get('description', '')) > 200 else ep.get('description', ''),
+                    'release_date': ep.get('release_date', 'Unknown'),
+                    'duration_min': ep.get('duration_ms', 0) // 60000,
+                    'url': ep.get('external_urls', {}).get('spotify', ''),
+                    'image': ep.get('images', [{}])[0].get('url', '') if ep.get('images') else None,
+                    'show_id': None,
+                    'show_name': 'Loading...'
+                }
+                episode_list.append(episode_data)
+            
+            # Now fetch full episode details to get show IDs
+            for i, ep_data in enumerate(episode_list):
+                if ep_data['id']:
+                    ep_url = f"https://api.spotify.com/v1/episodes/{ep_data['id']}"
+                    ep_response = requests.get(ep_url, headers=headers, params={"market": "US"})
+                    
+                    if ep_response.status_code == 200:
+                        full_episode = ep_response.json()
+                        if 'show' in full_episode:
+                            show_id = full_episode['show'].get('id')
+                            show_name = full_episode['show'].get('name', 'Unknown Show')
+                            episode_list[i]['show_id'] = show_id
+                            episode_list[i]['show_name'] = show_name
+                        
+                        # Small delay to respect rate limits
+                        time.sleep(0.1)
+            
+            return episode_list
+            
+        else:
+            st.error(f"❌ Spotify Episode Search Error: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Error searching episodes: {str(e)}")
+        return None
+            
+def get_new_episodes_today(token, limit=20):
+    """Get podcast episodes released today"""
+    if not token:
+        return None
+    
+    # Search for episodes with today's date
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        url = "https://api.spotify.com/v1/search"
+        params = {
+            "q": f"tag:new",  # This gets recently added content
+            "type": "episode",
+            "limit": limit,
+            "market": "US"
+        }
+        
+        response = requests.get(url, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            episodes = []
+            
+            for ep in data.get('episodes', {}).get('items', []):
+                # Filter for today's episodes
+                if ep['release_date'] == today:
+                    episode_data = {
+                        'id': ep['id'],
+                        'name': ep['name'],
+                        'show_name': ep['show']['name'],
+                        'description': ep['description'][:200] + '...' if len(ep['description']) > 200 else ep['description'],
+                        'release_date': ep['release_date'],
+                        'duration_min': ep['duration_ms'] // 60000,
+                        'url': ep['external_urls']['spotify'],
+                        'image': ep['images'][0]['url'] if ep['images'] else None
+                    }
+                    episodes.append(episode_data)
+            
+            return episodes
+        else:
+            return None
+            
+    except Exception as e:
+        return None
+  
+# ============ GOOGLE TRENDS FUNCTIONS ============
+
+def get_trending_searches(region='united_states'):
+    """Get current trending searches from Google Trends"""
+    try:
+        from pytrends.request import TrendReq
+        
+        # Initialize pytrends
+        pytrends = TrendReq(hl='en-US', tz=360)
+        
+        # Get trending searches
+        trending_df = pytrends.trending_searches(pn=region)
+        
+        # Convert to list
+        if trending_df is not None and not trending_df.empty:
+            trending_searches = trending_df[0].tolist()[:20]
+            return trending_searches
+        else:
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Google Trends API Error: {str(e)}")
+        return None
+        
+def get_related_queries(keyword, region='US'):
+    """Get related queries for a specific trend"""
+    try:
+        from pytrends.request import TrendReq
+        
+        pytrends = TrendReq(hl='en-US', tz=360)
+        
+        # Build payload
+        pytrends.build_payload([keyword], timeframe='now 7-d', geo=region)
+        
+        # Get related queries
+        related_queries = pytrends.related_queries()
+        
+        # Extract top and rising queries
+        related_data = {
+            'top': [],
+            'rising': []
+        }
+        
+        if keyword in related_queries:
+            if related_queries[keyword]['top'] is not None:
+                related_data['top'] = related_queries[keyword]['top']['query'].tolist()[:10]
+            if related_queries[keyword]['rising'] is not None:
+                related_data['rising'] = related_queries[keyword]['rising']['query'].tolist()[:10]
+        
+        return related_data
+    except Exception as e:
+        st.error(f"❌ Could not fetch related queries: {str(e)}")
+        return {'top': [], 'rising': []}
+        
+def analyze_trend_for_creator(trend, related_queries, creator_name, api_key):
+    """Analyze how a creator should cover a trending topic"""
+    if not api_key:
+        return None
+    
+    import openai
+    openai.api_key = api_key
+    
+    # Prepare context
+    context = f"Trending Topic: {trend}\n"
+    if related_queries['top']:
+        context += f"Top Related Searches: {', '.join(related_queries['top'][:5])}\n"
+    if related_queries['rising']:
+        context += f"Rising Related Searches: {', '.join(related_queries['rising'][:5])}\n"
+    
+    prompt = f"""Analyze this Google Trend for {creator_name}'s content strategy:
+
+{context}
+
+Provide a comprehensive content strategy for {creator_name}:
+
+📊 TREND SUMMARY: What this trend is about and why it's popular right now (2-3 sentences)
+
+🎯 {creator_name.upper()} ANGLE: How {creator_name} should approach this topic based on their personality and audience
+
+📹 VIDEO CONCEPTS: 3 specific video ideas with titles that {creator_name} could create:
+- Title 1: [Specific title]
+- Title 2: [Specific title]  
+- Title 3: [Specific title]
+
+🔥 HOT TAKE: {creator_name}'s unique, provocative perspective on this trend
+
+📱 SOCIAL MEDIA STRATEGY: How to leverage this trend across platforms:
+- YouTube Shorts idea
+- TikTok approach
+- Instagram Reels concept
+- Twitter/X thread idea
+
+⏰ TIMING: How urgent is this trend? When should {creator_name} publish content?
+
+🎪 CONTENT FORMAT: Best format for {creator_name} (reaction, analysis, story-time, investigation, etc.)
+
+#️⃣ HASHTAGS: Relevant hashtags for maximum reach
+
+💡 UNIQUE SPIN: What {creator_name} could do differently than everyone else covering this trend"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=800,
+            timeout=30
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI Analysis Error: {str(e)}"
+    
+# ============ TMDB API FUNCTIONS ============
+
+def get_tmdb_genres(api_key, media_type='movie'):
+    """Get list of genres from TMDb"""
+    try:
+        url = f"https://api.themoviedb.org/3/genre/{media_type}/list"
+        params = {'api_key': api_key}
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return {genre['id']: genre['name'] for genre in data['genres']}
+        return {}
+    except:
+        return {}
+
+def search_tmdb(api_key, query=None, media_type='movie', genre_id=None, year=None, 
+                company_id=None, sort_by='popularity.desc', page=1):
+    """Search TMDb for movies or TV shows"""
+    try:
+        if query:
+            # Search by title
+            url = f"https://api.themoviedb.org/3/search/{media_type}"
+            params = {
+                'api_key': api_key,
+                'query': query,
+                'page': page
+            }
+            if year:
+                params['year'] = year
+        else:
+            # Discover movies/shows by filters
+            url = f"https://api.themoviedb.org/3/discover/{media_type}"
+            params = {
+                'api_key': api_key,
+                'sort_by': sort_by,
+                'page': page,
+                'vote_count.gte': 100  # Only show items with at least 100 votes
+            }
+            if genre_id:
+                params['with_genres'] = genre_id
+            if year:
+                if media_type == 'movie':
+                    params['primary_release_year'] = year
+                else:
+                    params['first_air_date_year'] = year
+            if company_id:
+                params['with_companies'] = company_id
+        
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        st.error(f"TMDb API Error: {str(e)}")
+        return None
+
+def get_tmdb_item_details(api_key, item_id, media_type='movie'):
+    """Get detailed information about a movie or TV show"""
+    try:
+        url = f"https://api.themoviedb.org/3/{media_type}/{item_id}"
+        params = {
+            'api_key': api_key,
+            'append_to_response': 'credits,videos,keywords'
+        }
+        
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except:
+        return None
+
+def search_tmdb_multiple_companies(api_key, company_ids, media_type='movie', sort_by='popularity.desc', year=None):
+    """Search TMDb for movies/TV shows from multiple companies (OR logic)"""
+    all_results = []
+    seen_ids = set()  # To avoid duplicates
+    
+    try:
+        # Make separate API calls for each company
+        for company_id in company_ids:
+            url = f"https://api.themoviedb.org/3/discover/{media_type}"
+            params = {
+                'api_key': api_key,
+                'sort_by': sort_by,
+                'page': 1,
+                'vote_count.gte': 50,  # Lower threshold for individual companies
+                'with_companies': company_id
+            }
+            
+            if year:
+                if media_type == 'movie':
+                    params['primary_release_year'] = year
+                else:
+                    params['first_air_date_year'] = year
+            
+            response = requests.get(url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                for item in data.get('results', []):
+                    item_id = item.get('id')
+                    if item_id not in seen_ids:
+                        seen_ids.add(item_id)
+                        all_results.append(item)
+        
+        # Sort all results by the selected criteria
+        if all_results:
+            if sort_by == 'popularity.desc':
+                all_results.sort(key=lambda x: x.get('popularity', 0), reverse=True)
+            elif sort_by == 'vote_average.desc':
+                all_results.sort(key=lambda x: x.get('vote_average', 0), reverse=True)
+            elif sort_by == 'vote_count.desc':
+                all_results.sort(key=lambda x: x.get('vote_count', 0), reverse=True)
+            elif sort_by == 'release_date.desc' or sort_by == 'first_air_date.desc':
+                date_field = 'release_date' if media_type == 'movie' else 'first_air_date'
+                all_results.sort(key=lambda x: x.get(date_field, ''), reverse=True)
+            elif sort_by == 'revenue.desc':
+                all_results.sort(key=lambda x: x.get('revenue', 0), reverse=True)
+        
+        return {'results': all_results}
+        
+    except Exception as e:
+        st.error(f"TMDb API Error: {str(e)}")
+        return None
+    
+def search_tmdb_companies(api_key, query):
+    """Search for production companies"""
+    try:
+        url = "https://api.themoviedb.org/3/search/company"
+        params = {
+            'api_key': api_key,
+            'query': query
+        }
+        
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            return response.json()['results']
+        return []
+    except:
+        return []
+
+def analyze_movie_tv_trend(title, overview, popularity, vote_average, media_type, 
+                          genre_names, creator_name, api_key):
+    """Analyze how a creator should cover a trending movie/TV show"""
+    if not api_key:
+        return None
+    
+    import openai
+    openai.api_key = api_key
+    
+    context = f"""Trending {media_type.upper()}:
+Title: {title}
+Overview: {overview}
+Popularity Score: {popularity}
+Average Rating: {vote_average}/10
+Genres: {', '.join(genre_names)}
+
+This {media_type} is currently trending with high viewership and engagement."""
+    
+    prompt = f"""Analyze this trending {media_type} for {creator_name}'s content strategy:
+
+{context}
+
+Provide a comprehensive content strategy for {creator_name}:
+
+TREND ANALYSIS: Why this {media_type} is trending and what's driving the interest (2-3 sentences)
+
+{creator_name.upper()} ANGLE: How {creator_name} should approach this topic based on their personality and audience
+
+VIDEO CONCEPTS: 3 specific video ideas with titles that {creator_name} could create:
+- Title 1: [Specific title]
+- Title 2: [Specific title]  
+- Title 3: [Specific title]
+
+HOT TAKE: {creator_name}'s unique, provocative perspective on this {media_type}
+
+DEEP DIVE ANGLES: What aspects {creator_name} could explore (themes, controversies, behind-the-scenes, etc.)
+
+SOCIAL MEDIA STRATEGY: How to leverage this trend across platforms:
+- YouTube video idea
+- YouTube Shorts approach
+- TikTok series concept
+- Instagram Reels idea
+
+TIMING: How urgent is this trend? When should {creator_name} publish content?
+
+CONTENT FORMAT: Best format for {creator_name} (review, reaction, analysis, comparison, etc.)
+
+HASHTAGS: Relevant hashtags for maximum reach
+
+CONTROVERSY/DISCUSSION POINTS: What aspects would generate the most engagement and discussion?"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=800,
+            timeout=30
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI Analysis Error: {str(e)}"
+        
 # ============ SIDEBAR CONFIGURATION ============
 
 st.sidebar.markdown("""
@@ -1160,7 +1825,7 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
   "Choose Platform",
-  ["Reddit Analysis", "YouTube Intelligence"],
+  ["Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends"],
   key="platform_select"
 )
 
@@ -1181,7 +1846,7 @@ creator_name = st.sidebar.text_input(
 st.sidebar.markdown("---")
 
 # Get API keys from environment variables
-api_key, youtube_api_key = get_api_keys()
+api_key, youtube_api_key, spotify_client_id, spotify_client_secret, tmdb_key = get_api_keys()
 
 # API status - lower priority, less emphasized
 with st.sidebar.expander("🔑 API Status", expanded=False):
@@ -1684,6 +2349,557 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 
                 if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                     st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+
+elif platform == "Podcast Trends":
+    # Get Spotify credentials
+    _, _, spotify_client_id, spotify_client_secret = get_api_keys()
+    
+    
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+            Podcast <span style="color: #BCE5F7;">Trends</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+            Discover trending podcasts, find episodes about specific topics, and track what's popular in audio content.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Get Spotify token
+    if spotify_client_id and spotify_client_secret:
+        if 'spotify_token' not in st.session_state:
+            with st.spinner("Authenticating with Spotify..."):
+                token = get_spotify_token(spotify_client_id, spotify_client_secret)
+                if token:
+                    st.session_state.spotify_token = token
+    else:
+        st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
+        st.stop()
+
+    # Navigation tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TODAY'S EPISODES", "THIS WEEK'S POPULAR"])
+    
+    with tab1:
+        st.markdown("### 🎙️ Top Podcasts by Genre")
+        
+        # Genre selection
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            # Define genres with proper display names
+            genre_options = [
+                ("all", "All"),
+                ("comedy", "Comedy"),
+                ("news", "News"),
+                ("sports", "Sports"),
+                ("business", "Business"),
+                ("true crime", "True Crime"),
+                ("health & fitness", "Health & Fitness"),
+                ("technology", "Technology"),
+                ("society & culture", "Society & Culture"),
+                ("education", "Education"),
+                ("arts", "Arts"),
+                ("music", "Music"),
+                ("tv & film", "TV & Film"),
+                ("history", "History"),
+                ("science", "Science"),
+                ("religion & spirituality", "Religion & Spirituality")
+            ]
+            
+            # Create display names and values
+            genre_display = [display for value, display in genre_options]
+            genre_values = [value for value, display in genre_options]
+            
+            # Use format_func to show title case but keep lowercase values
+            genre = st.selectbox(
+                "Select Genre",
+                options=genre_values,
+                format_func=lambda x: dict(genre_options).get(x, x),
+                key="podcast_genre"
+            )
+        
+        with col2:
+            limit = st.number_input("Show top", min_value=5, max_value=50, value=10, key="podcast_limit")
+        
+        if st.button("Get Top Podcasts", key="get_top_podcasts", type="primary"):
+            if 'spotify_token' in st.session_state:
+                with st.spinner(f"Fetching top {genre} podcasts..."):
+                    shows = search_podcasts_by_genre(st.session_state.spotify_token, genre, limit)
+                    if shows:
+                        st.session_state.top_podcasts = shows
+                        st.success(f"✅ Found top {len(shows)} {genre} podcasts")
+        
+        # Display results
+        if 'top_podcasts' in st.session_state:
+            for i, show in enumerate(st.session_state.top_podcasts, 1):
+                with st.expander(f"{i:02d} | 🎙️ {show['name']} by {show['publisher']}", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if show['image']:
+                            st.image(show['image'], width=150)
+                    
+                    with col2:
+                        st.write(f"**Episodes:** {show['total_episodes']}")
+                        st.write(f"**Description:** {show['description']}")
+                        if show['explicit']:
+                            st.write("⚠️ Explicit Content")
+                        st.write(f"[Listen on Spotify]({show['url']})")
+                    
+                    # Get recent episodes button
+                    if st.button(f"Show Recent Episodes", key=f"btn_episodes_{show['id']}"):  # Changed key
+                        with st.spinner("Fetching episodes..."):
+                            episodes = get_show_episodes(st.session_state.spotify_token, show['id'], 5)
+                            if episodes:
+                                st.session_state[f"episodes_data_{show['id']}"] = episodes  # Changed key
+
+                    
+                    # Display episodes if fetched
+                    if f"episodes_data_{show['id']}" in st.session_state:  # Changed key
+                        st.write("**Recent Episodes:**")
+                        episodes = st.session_state[f"episodes_data_{show['id']}"]  # Changed key
+                        if episodes and isinstance(episodes, list):
+                            for ep in episodes:
+                                st.write(f"📻 **{ep['name']}** ({ep['duration_min']} min)")
+                                st.write(f"   Released: {ep['release_date']}")
+                                st.write(f"   {ep['description']}")
+                                st.write(f"   [Listen]({ep['url']})")
+                                st.write("---")
+                        else:
+                            st.write("No episodes available for this show.")
+    
+    with tab2:
+        st.markdown("### 🔍 Search Podcasts by Topic")
+        
+        # Topic search
+        search_topic = st.text_input(
+            "Enter topic or current event",
+            placeholder="e.g., 'Taylor Swift', 'Presidential Election', 'AI Technology'",
+            key="topic_search"
+        )
+        
+        if st.button("Search Episodes", key="search_topic_btn", type="primary") and search_topic:
+            if 'spotify_token' in st.session_state:
+                with st.spinner(f"Searching for episodes about '{search_topic}'..."):
+                    episodes = search_podcasts_by_topic(st.session_state.spotify_token, search_topic)
+                    if episodes:
+                        st.session_state.topic_results = episodes
+                        st.success(f"✅ Found {len(episodes)} episodes about '{search_topic}'")
+        
+        # Display topic results
+        if 'topic_results' in st.session_state:
+            for i, ep in enumerate(st.session_state.topic_results, 1):
+                # Show episode name with show name if available
+                if ep.get('show_name') and ep['show_name'] != 'Loading...':
+                    display_title = f"{ep['name']} - {ep['show_name']}"
+                else:
+                    display_title = ep['name']
+                    
+                with st.expander(f"{i:02d} | {display_title}", expanded=False):
+                    if ep['image']:
+                        st.image(ep['image'], width=200)
+                    
+                    st.write(f"**Released:** {ep['release_date']}")
+                    st.write(f"**Duration:** {ep['duration_min']} minutes")
+                    st.write(f"**Description:** {ep['description']}")
+                    st.write(f"[Listen on Spotify]({ep['url']})")
+
+    with tab3:
+        st.markdown("### 📅 Today's New Episodes")
+        
+        if st.button("Get Today's Episodes", key="get_today", type="primary"):
+            if 'spotify_token' in st.session_state:
+                with st.spinner("Fetching today's new episodes..."):
+                    episodes = get_new_episodes_today(st.session_state.spotify_token)
+                    if episodes:
+                        st.session_state.today_episodes = episodes
+                        st.success(f"✅ Found {len(episodes)} episodes released today")
+                    else:
+                        st.info("No new episodes found for today yet. Check back later!")
+        
+        # Display today's episodes
+        if 'today_episodes' in st.session_state:
+            for i, ep in enumerate(st.session_state.today_episodes, 1):
+                with st.expander(f"{ep['name']} - {ep['show_name']}", expanded=False):
+                    st.write(f"**Duration:** {ep['duration_min']} minutes")
+                    st.write(f"**Description:** {ep['description']}")
+                    st.write(f"[Listen on Spotify]({ep['url']})")
+    
+    with tab4:
+        st.markdown("### 📈 This Week's Popular Episodes")
+        st.info("Coming soon: Track the most popular episodes from the past week")
+
+elif platform == "Movie & TV Trends":
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+            Movie & TV <span style="color: #BCE5F7;">Trends</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+            Discover trending films and shows, analyze audience preferences, and create content around what's popular in entertainment.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if not tmdb_key:
+        st.error("❌ Please add TMDB_API_KEY to Railway environment variables")
+        st.info("Get your free API key at https://www.themoviedb.org/settings/api")
+        st.stop()
+    
+    # Navigation tabs
+    tab1, tab2 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES"])
+    
+    with tab1:
+        st.markdown("### 🎬 Discover Trending Movies & Shows")
+        
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+            media_type = st.selectbox(
+                "Media Type",
+                ["movie", "tv"],
+                format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
+                key="media_type_discover"
+            )
+        
+        with col2:
+            # Get genres for selected media type
+            genres = get_tmdb_genres(tmdb_key, media_type)
+            genre_options = [("all", "All Genres")] + [(str(gid), gname) for gid, gname in genres.items()]
+            
+            selected_genre = st.selectbox(
+                "Genre",
+                options=[g[0] for g in genre_options],
+                format_func=lambda x: dict(genre_options).get(x, x),
+                key="genre_select"
+            )
+        
+        with col3:
+            sort_options = [
+                ("popularity.desc", "Most Popular"),
+                ("vote_average.desc", "Highest Rated"),
+                ("vote_count.desc", "Most Voted"),
+                ("release_date.desc", "Newest First"),
+                ("revenue.desc", "Highest Revenue")
+            ]
+            
+            sort_by = st.selectbox(
+                "Sort By",
+                options=[s[0] for s in sort_options],
+                format_func=lambda x: dict(sort_options).get(x, x),
+                key="sort_select"
+            )
+        
+        # Optional year filter
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            use_year_filter = st.checkbox("Filter by year", key="use_year_discover")
+            if use_year_filter:
+                year_filter = st.number_input(
+                    "Year",
+                    min_value=1900,
+                    max_value=datetime.now().year + 1,
+                    value=datetime.now().year,
+                    key="year_filter"
+                )
+            else:
+                year_filter = None
+        
+        if st.button("🎬 Get Trending", key="get_trending", type="primary"):
+            with st.spinner(f"Fetching trending {media_type}s..."):
+                genre_id = None if selected_genre == "all" else selected_genre
+                year = year_filter if use_year_filter else None
+
+
+                
+                results = search_tmdb(tmdb_key, media_type=media_type, genre_id=genre_id, 
+                                    year=year, sort_by=sort_by)
+                
+                if results and results.get('results'):
+                    st.session_state.trending_results = results['results']
+                    st.success(f"✅ Found {len(results['results'])} trending {media_type}s")
+        
+        # Display results
+        if 'trending_results' in st.session_state:
+            for i, item in enumerate(st.session_state.trending_results[:20], 1):
+                title = item.get('title') or item.get('name', 'Unknown')
+                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
+                
+                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' else 'N/A'})", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if item.get('poster_path'):
+                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
+                            st.image(poster_url, width=150)
+                    
+                    with col2:
+                        # Metrics
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
+                        
+                        # Get genre names
+                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
+                        if genre_names:
+                            st.write(f"**Genres:** {', '.join(genre_names)}")
+                    
+                    # AI Analysis
+                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_tmdb_{i}"):
+                        with st.spinner(f"Analyzing for {creator_name}..."):
+                            media_type_display = "movie" if 'title' in item else "TV show"
+                            analysis = analyze_movie_tv_trend(
+                                title,
+                                item.get('overview', ''),
+                                item.get('popularity', 0),
+                                item.get('vote_average', 0),
+                                media_type_display,
+                                genre_names,
+                                creator_name,
+                                api_key
+                            )
+                            
+                            if analysis:
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(analysis)
+                                st.markdown('</div>', unsafe_allow_html=True)
+    
+    with tab2:
+        st.markdown("### 🔍 Search Movies & TV Shows")
+        
+        search_query = st.text_input(
+            "Search by Title/Keyword",
+            placeholder="e.g., 'Star Wars', 'zombie', 'superhero'",
+            key="title_search"
+        )
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            search_media_type = st.selectbox(
+                "Media Type",
+                ["movie", "tv"],
+                format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
+                key="media_type_search"
+            )
+        
+        with col2:
+            use_search_year = st.checkbox("Filter by year", key="use_year_search")
+            if use_search_year:
+                search_year = st.number_input(
+                    "Year",
+                    min_value=1900,
+                    max_value=datetime.now().year + 1,
+                    value=datetime.now().year,
+                    key="search_year"
+                )
+            else:
+                search_year = None
+        
+        if st.button("🔍 Search", key="search_titles", type="primary") and search_query:
+            with st.spinner(f"Searching for '{search_query}'..."):
+                # First do the search
+                results = search_tmdb(tmdb_key, query=search_query, media_type=search_media_type, year=search_year)
+                
+                if results and results.get('results'):
+                    # Store raw results for sorting
+                    st.session_state.search_results_raw = results['results']
+                    st.session_state.search_query_used = search_query
+                    st.session_state.search_media_type_used = search_media_type
+                    st.success(f"✅ Found {len(results['results'])} results for '{search_query}'")
+                else:
+                    st.warning("No results found. Try different keywords.")
+        
+        # If we have search results, show sorting options
+        if 'search_results_raw' in st.session_state and st.session_state.search_results_raw:
+            st.markdown("---")
+            st.markdown(f"**Results for: '{st.session_state.search_query_used}'**")
+            
+            # Sorting options
+            sort_options = [
+                ("popularity", "Most Popular"),
+                ("vote_average", "Highest Rated"),
+                ("vote_count", "Most Voted"),
+                ("release_date", "Newest First"),
+                ("title", "Alphabetical")
+            ]
+            
+            sort_by = st.selectbox(
+                "Sort Results By",
+                options=[s[0] for s in sort_options],
+                format_func=lambda x: dict(sort_options).get(x, x),
+                key="search_sort"
+            )
+            
+            # Sort the results
+            sorted_results = sorted(
+                st.session_state.search_results_raw,
+                key=lambda x: x.get(sort_by, 0) if sort_by != 'title' else (x.get('title') or x.get('name', '')),
+                reverse=(sort_by != 'title')
+            )
+            
+            # Get genres for the selected media type
+            genres = get_tmdb_genres(tmdb_key, st.session_state.search_media_type_used)
+            
+            # Display sorted results
+            for i, item in enumerate(sorted_results[:20], 1):
+                title = item.get('title') or item.get('name', 'Unknown')
+                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
+                
+                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' and len(release_date) >= 4 else 'N/A'})", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if item.get('poster_path'):
+                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
+                            st.image(poster_url, width=150)
+                    
+                    with col2:
+                        # Metrics
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
+                        
+                        # Get genre names
+                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
+                        if genre_names:
+                            st.write(f"**Genres:** {', '.join(genre_names)}")
+                    
+                    # AI Analysis
+                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_search_{i}"):
+                        with st.spinner(f"Analyzing for {creator_name}..."):
+                            media_type_display = "movie" if 'title' in item else "TV show"
+                            analysis = analyze_movie_tv_trend(
+                                title,
+                                item.get('overview', ''),
+                                item.get('popularity', 0),
+                                item.get('vote_average', 0),
+                                media_type_display,
+                                genre_names,
+                                creator_name,
+                                api_key
+                            )
+                            
+                            if analysis:
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(analysis)
+                                st.markdown('</div>', unsafe_allow_html=True)
+    
+    
+            company_names_display = st.session_state.get('company_content_names', ['Companies'])
+            if len(company_names_display) > 3:
+                names_text = f"{', '.join(company_names_display[:3])} and {len(company_names_display) - 3} more"
+            else:
+                names_text = ', '.join(company_names_display)
+            
+            st.markdown(f"### Results from: {names_text}")
+            
+            # Get genres for the selected media type
+            genres = get_tmdb_genres(tmdb_key, st.session_state.get('company_content_media_type', 'movie'))
+            
+            for i, item in enumerate(st.session_state.company_content_results[:20], 1):
+                title = item.get('title') or item.get('name', 'Unknown')
+                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
+                
+                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' and len(release_date) >= 4 else 'N/A'})", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if item.get('poster_path'):
+                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
+                            st.image(poster_url, width=150)
+                    
+                    with col2:
+                        # Metrics
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
+                        
+                        # Get genre names
+                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
+                        if genre_names:
+                            st.write(f"**Genres:** {', '.join(genre_names)}")
+                    
+                    # AI Analysis (same as before)
+                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_company_{i}"):
+                        with st.spinner(f"Analyzing for {creator_name}..."):
+                            media_type_display = "movie" if 'title' in item else "TV show"
+                            analysis = analyze_movie_tv_trend(
+                                title,
+                                item.get('overview', ''),
+                                item.get('popularity', 0),
+                                item.get('vote_average', 0),
+                                media_type_display,
+                                genre_names,
+                                creator_name,
+                                api_key
+                            )
+                            
+                            if analysis:
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(analysis)
+                                st.markdown('</div>', unsafe_allow_html=True)
 
 elif platform == "Reddit Analysis":
   # Hero-style header
