@@ -2549,7 +2549,7 @@ elif platform == "Movie & TV Trends":
         st.stop()
     
     # Navigation tabs
-    tab1, tab2, tab3 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES", "PRODUCTION COMPANIES"])
+    tab1, tab2 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES"])
     
     with tab1:
         st.markdown("### 🎬 Discover Trending Movies & Shows")
@@ -2826,100 +2826,7 @@ elif platform == "Movie & TV Trends":
                                 st.write(analysis)
                                 st.markdown('</div>', unsafe_allow_html=True)
     
-    with tab3:
-        st.markdown("### 🏢 Browse by Production Company")
-        
-        company_search = st.text_input(
-            "Search Production Company",
-            placeholder="e.g., 'Warner Bros', 'Netflix', 'A24'",
-            key="company_search"
-        )
-        
-        if st.button("🔍 Search Companies", key="search_companies") and company_search:
-            with st.spinner("Searching companies..."):
-                companies = search_tmdb_companies(tmdb_key, company_search)
-                if companies:
-                    st.session_state.companies = companies
-                    st.success(f"✅ Found {len(companies)} companies")
-        
-        # Display companies with multiselect
-        if 'companies' in st.session_state and st.session_state.companies:
-            st.write("**Select companies (you can choose multiple):**")
-            
-            # Create multiselect with companies
-            company_options = {c['id']: c['name'] for c in st.session_state.companies[:30]}
-            selected_company_ids = st.multiselect(
-                "Production Companies",
-                options=list(company_options.keys()),
-                format_func=lambda x: company_options.get(x, x),
-                key="selected_companies"
-            )
-            
-            if selected_company_ids:
-                # Add media type and sort options
-                col1, col2 = st.columns([1, 1])
-                
-                with col1:
-                    company_media_type = st.selectbox(
-                        "Media Type",
-                        ["movie", "tv"],
-                        format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
-                        key="company_media_type"
-                    )
-                
-                with col2:
-                    company_sort_options = [
-                        ("popularity.desc", "Most Popular"),
-                        ("vote_average.desc", "Highest Rated"),
-                        ("vote_count.desc", "Most Voted"),
-                        ("release_date.desc", "Newest First") if company_media_type == "movie" else ("first_air_date.desc", "Newest First"),
-                        ("revenue.desc", "Highest Revenue")
-                    ]
-                    
-                    company_sort_by = st.selectbox(
-                        "Sort By",
-                        options=[s[0] for s in company_sort_options],
-                        format_func=lambda x: dict(company_sort_options).get(x, x),
-                        key="company_sort_select"
-                    )
-                
-                # Year filter
-                use_company_year = st.checkbox("Filter by year", key="use_year_company")
-                if use_company_year:
-                    company_year = st.number_input(
-                        "Year",
-                        min_value=1900,
-                        max_value=datetime.now().year + 1,
-                        value=datetime.now().year,
-                        key="company_year_filter"
-                    )
-                else:
-                    company_year = None
-                
-                # Get content button
-                if st.button(f"🎬 Get Content from {len(selected_company_ids)} Companies", key="get_company_content", type="primary"):
-                    selected_company_names = [company_options[cid] for cid in selected_company_ids]
-                    
-                    with st.spinner(f"Fetching {company_media_type}s from {', '.join(selected_company_names[:3])}{'...' if len(selected_company_names) > 3 else ''}"):
-                        # Use the new function for multiple companies
-                        results = search_tmdb_multiple_companies(
-                            tmdb_key, 
-                            selected_company_ids,  # Pass list of IDs
-                            media_type=company_media_type,
-                            sort_by=company_sort_by,
-                            year=company_year
-                        )
-                        
-                        if results and results.get('results'):
-                            st.session_state.company_content_results = results['results']
-                            st.session_state.company_content_names = selected_company_names
-                            st.session_state.company_content_media_type = company_media_type
-                            st.success(f"✅ Found {len(results['results'])} unique {company_media_type}s from selected companies")
-                        else:
-                            st.warning(f"No {company_media_type}s found for selected companies")
-        
-        # Display company content results
-        if 'company_content_results' in st.session_state:
+    
             company_names_display = st.session_state.get('company_content_names', ['Companies'])
             if len(company_names_display) > 3:
                 names_text = f"{', '.join(company_names_display[:3])} and {len(company_names_display) - 3} more"
