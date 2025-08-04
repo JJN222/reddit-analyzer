@@ -2664,11 +2664,53 @@ elif platform == "Movie & TV Trends":
                     st.session_state.search_results = results['results']
                     st.success(f"✅ Found {len(results['results'])} results")
         
-        # Display search results (similar format to trending results)
+        # Display search results
         if 'search_results' in st.session_state:
+            # Get genres for the selected media type
+            genres = get_tmdb_genres(tmdb_key, search_media_type)
+            
             for i, item in enumerate(st.session_state.search_results[:20], 1):
-                # Similar display format as trending results
-                pass  # Use same format as above
+                title = item.get('title') or item.get('name', 'Unknown')
+                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
+                
+                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' else 'N/A'})", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if item.get('poster_path'):
+                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
+                            st.image(poster_url, width=150)
+                    
+                    with col2:
+                        # Metrics
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
+                        
+                        # Get genre names
+                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
+                        if genre_names:
+                            st.write(f"**Genres:** {', '.join(genre_names)}")
+                    
+                    # AI Analysis button (same as in trending)
+                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_search_{i}"):
+                        # Same analysis code as trending
+                        pass
     
     with tab3:
         st.markdown("### 🏢 Browse by Production Company")
@@ -2686,19 +2728,144 @@ elif platform == "Movie & TV Trends":
                     st.session_state.companies = companies
                     st.success(f"✅ Found {len(companies)} companies")
         
-        # Display companies and their content
-        if 'companies' in st.session_state:
-            for company in st.session_state.companies[:10]:
-                if st.button(f"🏢 {company['name']}", key=f"company_{company['id']}"):
-                    with st.spinner(f"Fetching content from {company['name']}..."):
-                        results = search_tmdb(tmdb_key, media_type='movie', company_id=company['id'])
-                        if results and results.get('results'):
-                            st.session_state[f"company_results_{company['id']}"] = results['results']
+        # Display companies
+        if 'companies' in st.session_state and st.session_state.companies:
+            st.write("**Select a company:**")
+            
+            # Create a selectbox with companies
+            company_options = [(c['id'], c['name']) for c in st.session_state.companies[:20]]
+            selected_company_id = st.selectbox(
+                "Production Company",
+                options=[c[0] for c in company_options],
+                format_func=lambda x: dict(company_options).get(x, x),
+                key="selected_company"
+            )
+            
+            # Add sorting options
+            col1, col2, col3 = st.columns([1, 1, 1])
+            
+            with col1:
+                company_media_type = st.selectbox(
+                    "Media Type",
+                    ["movie", "tv"],
+                    format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
+                    key="company_media_type"
+                )
+            
+            with col2:
+                company_sort_options = [
+                    ("popularity.desc", "Most Popular"),
+                    ("vote_average.desc", "Highest Rated"),
+                    ("vote_count.desc", "Most Voted"),
+                    ("release_date.desc", "Newest First"),
+                    ("revenue.desc", "Highest Revenue")
+                ]
                 
-                # Display company results if available
-                if f"company_results_{company['id']}" in st.session_state:
-                    st.write(f"**Movies from {company['name']}:**")
-                    # Display movies (similar format as above)
+                company_sort_by = st.selectbox(
+                    "Sort By",
+                    options=[s[0] for s in company_sort_options],
+                    format_func=lambda x: dict(company_sort_options).get(x, x),
+                    key="company_sort_select"
+                )
+            
+            with col3:
+                company_year = st.number_input(
+                    "Year (optional)",
+                    min_value=1900,
+                    max_value=datetime.now().year + 1,
+                    value=datetime.now().year,
+                    key="company_year_filter"
+                )
+            
+            # Get content button
+            if st.button(f"🎬 Get Content", key="get_company_content", type="primary"):
+                selected_company_name = dict(company_options).get(selected_company_id, "Unknown")
+                with st.spinner(f"Fetching {company_media_type}s from {selected_company_name}..."):
+                    year = None if company_year == datetime.now().year else company_year
+                    results = search_tmdb(
+                        tmdb_key, 
+                        media_type=company_media_type, 
+                        company_id=selected_company_id,
+                        sort_by=company_sort_by,
+                        year=year
+                    )
+                    
+                    if results and results.get('results'):
+                        st.session_state.company_content_results = results['results']
+                        st.session_state.company_content_name = selected_company_name
+                        st.success(f"✅ Found {len(results['results'])} {company_media_type}s from {selected_company_name}")
+                    else:
+                        st.warning(f"No {company_media_type}s found for {selected_company_name}")
+        
+        # Display company content results
+        if 'company_content_results' in st.session_state:
+            st.markdown(f"### Results from {st.session_state.get('company_content_name', 'Company')}")
+            
+            # Get genres for the selected media type
+            genres = get_tmdb_genres(tmdb_key, company_media_type)
+            
+            for i, item in enumerate(st.session_state.company_content_results[:20], 1):
+                title = item.get('title') or item.get('name', 'Unknown')
+                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
+                
+                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' else 'N/A'})", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if item.get('poster_path'):
+                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
+                            st.image(poster_url, width=150)
+                    
+                    with col2:
+                        # Metrics
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
+                        
+                        # Get genre names
+                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
+                        if genre_names:
+                            st.write(f"**Genres:** {', '.join(genre_names)}")
+                    
+                    # AI Analysis
+                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_company_{i}"):
+                        with st.spinner(f"Analyzing for {creator_name}..."):
+                            media_type_display = "movie" if 'title' in item else "TV show"
+                            analysis = analyze_movie_tv_trend(
+                                title,
+                                item.get('overview', ''),
+                                item.get('popularity', 0),
+                                item.get('vote_average', 0),
+                                media_type_display,
+                                genre_names,
+                                creator_name,
+                                api_key
+                            )
+                            
+                            if analysis:
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(analysis)
+                                st.markdown('</div>', unsafe_allow_html=True)
 
 elif platform == "Reddit Analysis":
   # Hero-style header
