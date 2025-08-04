@@ -1199,13 +1199,14 @@ def search_podcasts_by_genre(token, genre="all", limit=10):
         # Build search query based on genre
         if genre == "all":
             # For 'all', search for popular podcast shows
-            search_query = "year:2024-2025"  # Recent podcasts
+            search_query = "podcast"  # Simple generic search
             params = {
                 "q": search_query,
                 "type": "show",
                 "limit": 50,  # Get more results to filter from
                 "market": "US"
             }
+
         else:
             # For specific genres, use the genre in the search
             # Remove the "genre:" prefix as it's not supported for shows
@@ -2226,10 +2227,6 @@ elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret = get_api_keys()
     
-    # DEBUG: Check what we're getting
-    st.write(f"DEBUG - Client ID exists: {bool(spotify_client_id)}")
-    st.write(f"DEBUG - Client Secret exists: {bool(spotify_client_secret)}")
-    st.write(f"DEBUG - Client ID length: {len(spotify_client_id) if spotify_client_id else 0}")
     
     # Hero-style header
     st.markdown("""
@@ -2315,12 +2312,16 @@ elif platform == "Podcast Trends":
                     # Display episodes if fetched
                     if f"episodes_{show['id']}" in st.session_state:
                         st.write("**Recent Episodes:**")
-                        for ep in st.session_state[f"episodes_{show['id']}"]:
-                            st.write(f"📻 **{ep['name']}** ({ep['duration_min']} min)")
-                            st.write(f"   Released: {ep['release_date']}")
-                            st.write(f"   {ep['description']}")
-                            st.write(f"   [Listen]({ep['url']})")
-                            st.write("---")
+                        episodes = st.session_state[f"episodes_{show['id']}"]
+                        if episodes and isinstance(episodes, list):  # Add this check
+                            for ep in episodes:
+                                st.write(f"📻 **{ep['name']}** ({ep['duration_min']} min)")
+                                st.write(f"   Released: {ep['release_date']}")
+                                st.write(f"   {ep['description']}")
+                                st.write(f"   [Listen]({ep['url']})")
+                                st.write("---")
+                        else:
+                            st.write("No episodes available for this show.")
     
     with tab2:
         st.markdown("### 🔍 Search Podcasts by Topic")
