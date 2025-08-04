@@ -1735,6 +1735,23 @@ def search_tmdb_multiple_companies(api_key, company_ids, media_type='movie', sor
     except Exception as e:
         st.error(f"TMDb API Error: {str(e)}")
         return None
+    
+def search_tmdb_companies(api_key, query):
+    """Search for production companies"""
+    try:
+        url = "https://api.themoviedb.org/3/search/company"
+        params = {
+            'api_key': api_key,
+            'query': query
+        }
+        
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            return response.json()['results']
+        return []
+    except:
+        return []
 
 def analyze_movie_tv_trend(title, overview, popularity, vote_average, media_type, 
                           genre_names, creator_name, api_key):
