@@ -367,7 +367,8 @@ def get_api_keys():
   youtube_key = os.getenv('YOUTUBE_API_KEY', '')
   spotify_client_id = os.getenv('SPOTIFY_CLIENT_ID', '')
   spotify_client_secret = os.getenv('SPOTIFY_CLIENT_SECRET', '')
-  return openai_key, youtube_key, spotify_client_id, spotify_client_secret
+  tmdb_key = os.getenv('TMDB_API_KEY', '')
+  return openai_key, youtube_key, spotify_client_id, spotify_client_secret, tmdb_key
 
 # ============ REDDIT FUNCTIONS ============
 
@@ -1607,134 +1608,123 @@ Provide a comprehensive content strategy for {creator_name}:
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
     
-# ============ WIKIPEDIA TRENDS FUNCTIONS ============
+# ============ TMDB API FUNCTIONS ============
 
-def get_wikipedia_trending(date=None, limit=50):
-    """Get most viewed Wikipedia articles for a specific date"""
+def get_tmdb_genres(api_key, media_type='movie'):
+    """Get list of genres from TMDb"""
     try:
-        # If no date provided, use yesterday (today's data might not be complete)
-        if not date:
-            date = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
-        else:
-            # Convert date to required format
-            date = datetime.strptime(date, '%Y-%m-%d').strftime('%Y/%m/%d')
-        
-        # Wikipedia Pageviews API
-        url = f"https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/{date}"
-        
-        response = requests.get(url, timeout=10)
+        url = f"https://api.themoviedb.org/3/genre/{media_type}/list"
+        params = {'api_key': api_key}
+        response = requests.get(url, params=params)
         
         if response.status_code == 200:
             data = response.json()
-            articles = data.get('items', [{}])[0].get('articles', [])
-            
-            # Filter out main page and special pages
-            filtered_articles = []
-            for article in articles:
-                title = article.get('article', '')
-                if not any(skip in title.lower() for skip in ['main_page', 'special:', 'portal:', 'file:', 'help:', 'wikipedia:']):
-                    filtered_articles.append({
-                        'title': title.replace('_', ' '),
-                        'views': article.get('views', 0),
-                        'rank': article.get('rank', 0)
-                    })
-            
-            return filtered_articles[:limit]
-        else:
-            st.error(f"❌ Wikipedia API Error: {response.status_code}")
-            return None
-            
-    except Exception as e:
-        st.error(f"❌ Error fetching Wikipedia trends: {str(e)}")
-        return None
+            return {genre['id']: genre['name'] for genre in data['genres']}
+        return {}
+    except:
+        return {}
 
-def get_wikipedia_article_summary(title):
-    """Get summary of a Wikipedia article"""
+def search_tmdb(api_key, query=None, media_type='movie', genre_id=None, year=None, 
+                company_id=None, sort_by='popularity.desc', page=1):
+    """Search TMDb for movies or TV shows"""
     try:
-        # Wikipedia API endpoint
-        url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + title.replace(' ', '_')
-        
-        response = requests.get(url, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            return {
-                'title': data.get('title', title),
-                'extract': data.get('extract', 'No summary available'),
-                'thumbnail': data.get('thumbnail', {}).get('source', None),
-                'url': data.get('content_urls', {}).get('desktop', {}).get('page', '')
+        if query:
+            # Search by title
+            url = f"https://api.themoviedb.org/3/search/{media_type}"
+            params = {
+                'api_key': api_key,
+                'query': query,
+                'page': page
             }
-        return None
+            if year:
+                params['year'] = year
+        else:
+            # Discover movies/shows by filters
+            url = f"https://api.themoviedb.org/3/discover/{media_type}"
+            params = {
+                'api_key': api_key,
+                'sort_by': sort_by,
+                'page': page,
+                'vote_count.gte': 100  # Only show items with at least 100 votes
+            }
+            if genre_id:
+                params['with_genres'] = genre_id
+            if year:
+                if media_type == 'movie':
+                    params['primary_release_year'] = year
+                else:
+                    params['first_air_date_year'] = year
+            if company_id:
+                params['with_companies'] = company_id
         
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            return response.json()
+        return None
     except Exception as e:
+        st.error(f"TMDb API Error: {str(e)}")
         return None
 
-def get_wikipedia_recent_changes(limit=20, namespace=0):
-    """Get recently edited Wikipedia articles (often indicates trending topics)"""
+def get_tmdb_item_details(api_key, item_id, media_type='movie'):
+    """Get detailed information about a movie or TV show"""
     try:
-        url = "https://en.wikipedia.org/w/api.php"
+        url = f"https://api.themoviedb.org/3/{media_type}/{item_id}"
         params = {
-            'action': 'query',
-            'list': 'recentchanges',
-            'rcprop': 'title|ids|sizes|user|comment',
-            'rcnamespace': namespace,  # 0 = main articles
-            'rclimit': limit,
-            'rctype': 'edit|new',
-            'format': 'json'
+            'api_key': api_key,
+            'append_to_response': 'credits,videos,keywords'
         }
         
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params)
         
         if response.status_code == 200:
-            data = response.json()
-            changes = data.get('query', {}).get('recentchanges', [])
-            
-            # Group by title and count edits
-            edit_counts = {}
-            for change in changes:
-                title = change.get('title', '')
-                if title not in edit_counts:
-                    edit_counts[title] = {
-                        'title': title,
-                        'edits': 0,
-                        'size_change': 0,
-                        'latest_comment': change.get('comment', '')
-                    }
-                edit_counts[title]['edits'] += 1
-                edit_counts[title]['size_change'] += change.get('newlen', 0) - change.get('oldlen', 0)
-            
-            # Sort by edit count
-            trending_edits = sorted(edit_counts.values(), key=lambda x: x['edits'], reverse=True)
-            return trending_edits[:10]
-        
+            return response.json()
         return None
-        
-    except Exception as e:
-        st.error(f"❌ Error fetching recent changes: {str(e)}")
+    except:
         return None
 
-def analyze_wikipedia_trend_for_creator(article_title, summary, views, creator_name, api_key):
-    """Analyze how a creator should cover a trending Wikipedia topic"""
+def search_tmdb_companies(api_key, query):
+    """Search for production companies"""
+    try:
+        url = "https://api.themoviedb.org/3/search/company"
+        params = {
+            'api_key': api_key,
+            'query': query
+        }
+        
+        response = requests.get(url, params=params)
+        
+        if response.status_code == 200:
+            return response.json()['results']
+        return []
+    except:
+        return []
+
+def analyze_movie_tv_trend(title, overview, popularity, vote_average, media_type, 
+                          genre_names, creator_name, api_key):
+    """Analyze how a creator should cover a trending movie/TV show"""
     if not api_key:
         return None
     
     import openai
     openai.api_key = api_key
     
-    context = f"""Trending Wikipedia Article:
-Title: {article_title}
-Views: {views:,} (in last 24 hours)
-Summary: {summary}
+    context = f"""Trending {media_type.upper()}:
+Title: {title}
+Overview: {overview}
+Popularity Score: {popularity}
+Average Rating: {vote_average}/10
+Genres: {', '.join(genre_names)}
 
-This article is trending on Wikipedia, indicating high public interest."""
+This {media_type} is currently trending with high viewership and engagement."""
     
-    prompt = f"""Analyze this trending Wikipedia topic for {creator_name}'s content strategy:
+    prompt = f"""Analyze this trending {media_type} for {creator_name}'s content strategy:
 
 {context}
 
 Provide a comprehensive content strategy for {creator_name}:
 
-TREND ANALYSIS: Why is this topic trending and what's driving the interest (2-3 sentences)
+TREND ANALYSIS: Why this {media_type} is trending and what's driving the interest (2-3 sentences)
 
 {creator_name.upper()} ANGLE: How {creator_name} should approach this topic based on their personality and audience
 
@@ -1743,23 +1733,23 @@ VIDEO CONCEPTS: 3 specific video ideas with titles that {creator_name} could cre
 - Title 2: [Specific title]  
 - Title 3: [Specific title]
 
-HOT TAKE: {creator_name}'s unique, provocative perspective on this topic
+HOT TAKE: {creator_name}'s unique, provocative perspective on this {media_type}
 
-DEEP DIVE ANGLES: What aspects of this topic {creator_name} could explore that others might miss
+DEEP DIVE ANGLES: What aspects {creator_name} could explore (themes, controversies, behind-the-scenes, etc.)
 
 SOCIAL MEDIA STRATEGY: How to leverage this trend across platforms:
-- YouTube Shorts idea
-- TikTok approach
-- Instagram Reels concept
-- Twitter/X thread idea
+- YouTube video idea
+- YouTube Shorts approach
+- TikTok series concept
+- Instagram Reels idea
 
 TIMING: How urgent is this trend? When should {creator_name} publish content?
 
-CONTENT FORMAT: Best format for {creator_name} (explainer, reaction, investigation, story-time, etc.)
+CONTENT FORMAT: Best format for {creator_name} (review, reaction, analysis, comparison, etc.)
 
 HASHTAGS: Relevant hashtags for maximum reach
 
-UNIQUE SPIN: What {creator_name} could do differently than everyone else covering this topic"""
+CONTROVERSY/DISCUSSION POINTS: What aspects would generate the most engagement and discussion?"""
     
     try:
         response = openai.ChatCompletion.create(
@@ -1771,7 +1761,7 @@ UNIQUE SPIN: What {creator_name} could do differently than everyone else coverin
         return response.choices[0].message.content
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
-    
+        
 # ============ SIDEBAR CONFIGURATION ============
 
 st.sidebar.markdown("""
@@ -1782,7 +1772,7 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
   "Choose Platform",
-  ["Reddit Analysis", "YouTube Intelligence", "Wikipedia Trends", "Podcast Trends"],
+  ["Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends"],
   key="platform_select"
 )
 
@@ -1803,7 +1793,7 @@ creator_name = st.sidebar.text_input(
 st.sidebar.markdown("---")
 
 # Get API keys from environment variables
-api_key, youtube_api_key, spotify_client_id, spotify_client_secret = get_api_keys()
+api_key, youtube_api_key, spotify_client_id, spotify_client_secret, tmdb_key = get_api_keys()
 
 # API status - lower priority, less emphasized
 with st.sidebar.expander("🔑 API Status", expanded=False):
@@ -2487,166 +2477,227 @@ elif platform == "Podcast Trends":
         st.markdown("### 📈 This Week's Popular Episodes")
         st.info("Coming soon: Track the most popular episodes from the past week")
 
-elif platform == "Wikipedia Trends":
+elif platform == "Movie & TV Trends":
     # Hero-style header
     st.markdown("""
     <div style="margin-bottom: 4rem;">
         <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
-            Wikipedia <span style="color: #BCE5F7;">Trends</span>
+            Movie & TV <span style="color: #BCE5F7;">Trends</span>
         </h1>
         <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
-            Discover what millions are reading on Wikipedia right now and create content around trending topics.
+            Discover trending films and shows, analyze audience preferences, and create content around what's popular in entertainment.
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Configuration section
-    st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
+    if not tmdb_key:
+        st.error("❌ Please add TMDB_API_KEY to Railway environment variables")
+        st.info("Get your free API key at https://www.themoviedb.org/settings/api")
+        st.stop()
     
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        trend_type = st.radio(
-            "Trend Type",
-            ["Most Viewed Articles", "Recently Edited (Breaking News)"],
-            key="wiki_trend_type"
-        )
+    # Navigation tabs
+    tab1, tab2, tab3 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES", "PRODUCTION COMPANIES"])
     
-    with col2:
-        if trend_type == "Most Viewed Articles":
-            # Date picker for historical data
-            selected_date = st.date_input(
-                "Select Date",
-                value=datetime.now() - timedelta(days=1),
-                max_value=datetime.now() - timedelta(days=1),
-                min_value=datetime.now() - timedelta(days=90),
-                key="wiki_date"
-            )
-        else:
-            st.info("Shows articles being actively edited right now")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Get trends button
-    if st.button("Get Wikipedia Trends", key="get_wiki_trends", type="primary", use_container_width=True):
-        with st.spinner("🔍 Fetching Wikipedia trends..."):
-            if trend_type == "Most Viewed Articles":
-                trends = get_wikipedia_trending(selected_date.strftime('%Y-%m-%d'))
-                if trends:
-                    st.session_state.wiki_trends = trends
-                    st.session_state.wiki_trend_date = selected_date.strftime('%Y-%m-%d')
-                    st.success(f"✅ Found top {len(trends)} trending articles for {selected_date.strftime('%B %d, %Y')}")
-            else:
-                changes = get_wikipedia_recent_changes()
-                if changes:
-                    st.session_state.wiki_changes = changes
-                    st.success(f"✅ Found {len(changes)} actively edited articles")
-    
-    # Display trends
-    if trend_type == "Most Viewed Articles" and 'wiki_trends' in st.session_state:
-        st.markdown(f"### 📈 Most Viewed Wikipedia Articles - {st.session_state.get('wiki_trend_date', '')}")
+    with tab1:
+        st.markdown("### 🎬 Discover Trending Movies & Shows")
         
-        for i, article in enumerate(st.session_state.wiki_trends[:20], 1):
-            with st.expander(f"{i:02d} | 📊 {article['title']} ({article['views']:,} views)", expanded=False):
-                # Metrics
-                st.markdown(f"""
-                <div style="display: flex; gap: 3rem; margin-bottom: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
-                    <div style="text-align: center;">
-                        <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">#{article['rank']}</p>
-                        <p style="font-size: 14px; text-transform: uppercase; color: #666;">Rank</p>
-                    </div>
-                    <div style="text-align: center;">
-                        <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">{article['views']:,}</p>
-                        <p style="font-size: 14px; text-transform: uppercase; color: #666;">Views (24h)</p>
-                    </div>
-                    <div style="text-align: center;">
-                        <p style="font-size: 32px; font-weight: 800; color: #BCE5F7; margin: 0;">🔥</p>
-                        <p style="font-size: 14px; text-transform: uppercase; color: #666;">Trending</p>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
+            media_type = st.selectbox(
+                "Media Type",
+                ["movie", "tv"],
+                format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
+                key="media_type_discover"
+            )
+        
+        with col2:
+            # Get genres for selected media type
+            genres = get_tmdb_genres(tmdb_key, media_type)
+            genre_options = [("all", "All Genres")] + [(str(gid), gname) for gid, gname in genres.items()]
+            
+            selected_genre = st.selectbox(
+                "Genre",
+                options=[g[0] for g in genre_options],
+                format_func=lambda x: dict(genre_options).get(x, x),
+                key="genre_select"
+            )
+        
+        with col3:
+            sort_options = [
+                ("popularity.desc", "Most Popular"),
+                ("vote_average.desc", "Highest Rated"),
+                ("vote_count.desc", "Most Voted"),
+                ("release_date.desc", "Newest First"),
+                ("revenue.desc", "Highest Revenue")
+            ]
+            
+            sort_by = st.selectbox(
+                "Sort By",
+                options=[s[0] for s in sort_options],
+                format_func=lambda x: dict(sort_options).get(x, x),
+                key="sort_select"
+            )
+        
+        # Optional year filter
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            year_filter = st.number_input(
+                "Year (optional)",
+                min_value=1900,
+                max_value=datetime.now().year + 1,
+                value=0,
+                key="year_filter"
+            )
+        
+        if st.button("🎬 Get Trending", key="get_trending", type="primary"):
+            with st.spinner(f"Fetching trending {media_type}s..."):
+                genre_id = None if selected_genre == "all" else selected_genre
+                year = None if year_filter == 0 else year_filter
                 
-                # Get article summary
-                if st.button(f"Get Article Details", key=f"wiki_summary_{i}"):
-                    with st.spinner("Fetching article summary..."):
-                        summary_data = get_wikipedia_article_summary(article['title'])
-                        if summary_data:
-                            st.session_state[f"wiki_summary_{i}"] = summary_data
+                results = search_tmdb(tmdb_key, media_type=media_type, genre_id=genre_id, 
+                                    year=year, sort_by=sort_by)
                 
-                # Display summary if available
-                if f"wiki_summary_{i}" in st.session_state:
-                    summary_data = st.session_state[f"wiki_summary_{i}"]
+                if results and results.get('results'):
+                    st.session_state.trending_results = results['results']
+                    st.success(f"✅ Found {len(results['results'])} trending {media_type}s")
+        
+        # Display results
+        if 'trending_results' in st.session_state:
+            for i, item in enumerate(st.session_state.trending_results[:20], 1):
+                title = item.get('title') or item.get('name', 'Unknown')
+                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
+                
+                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' else 'N/A'})", expanded=False):
+                    col1, col2 = st.columns([1, 3])
                     
-                    if summary_data.get('thumbnail'):
-                        st.image(summary_data['thumbnail'], width=300)
+                    with col1:
+                        if item.get('poster_path'):
+                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
+                            st.image(poster_url, width=150)
                     
-                    st.write(f"**Summary:** {summary_data['extract']}")
-                    st.write(f"[Read on Wikipedia]({summary_data['url']})")
+                    with col2:
+                        # Metrics
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
+                        
+                        # Get genre names
+                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
+                        if genre_names:
+                            st.write(f"**Genres:** {', '.join(genre_names)}")
                     
                     # AI Analysis
-                    if api_key:
-                        if st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_wiki_{i}"):
-                            with st.spinner(f"🤖 Analyzing for {creator_name}..."):
-                                analysis = analyze_wikipedia_trend_for_creator(
-                                    article['title'],
-                                    summary_data['extract'],
-                                    article['views'],
-                                    creator_name,
-                                    api_key
-                                )
-                                st.session_state[f"wiki_analysis_{i}"] = analysis
-                        
-                        # Display analysis
-                        if f"wiki_analysis_{i}" in st.session_state:
-                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                            st.markdown("""
-                            <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-                                AI Analysis <span style="color: #BCE5F7;">Results</span>
-                            </h3>
-                            """, unsafe_allow_html=True)
-                            st.write(st.session_state[f"wiki_analysis_{i}"])
-                            
-                            # Export
-                            export_data = f"""# {creator_name} Strategy for Wikipedia Trend
-
-**Topic:** {article['title']}
-**Views:** {article['views']:,} (24 hours)
-**Rank:** #{article['rank']}
-**Date:** {st.session_state.get('wiki_trend_date', '')}
-
-## Summary:
-{summary_data['extract']}
-
-## AI Analysis:
-{st.session_state[f"wiki_analysis_{i}"]}
-
-Wikipedia URL: {summary_data['url']}
-Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}
-"""
-                            
-                            st.download_button(
-                                label="📄 Export Strategy",
-                                data=export_data,
-                                file_name=f"{creator_name.replace(' ', '_')}_{article['title'].replace(' ', '_')}_strategy.txt",
-                                mime="text/plain",
-                                key=f"export_wiki_{i}"
+                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_tmdb_{i}"):
+                        with st.spinner(f"Analyzing for {creator_name}..."):
+                            media_type_display = "movie" if 'title' in item else "TV show"
+                            analysis = analyze_movie_tv_trend(
+                                title,
+                                item.get('overview', ''),
+                                item.get('popularity', 0),
+                                item.get('vote_average', 0),
+                                media_type_display,
+                                genre_names,
+                                creator_name,
+                                api_key
                             )
-                            st.markdown('</div>', unsafe_allow_html=True)
-                    else:
-                        st.info("⚠️ Configure OpenAI API key for content strategy analysis")
+                            
+                            if analysis:
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(analysis)
+                                st.markdown('</div>', unsafe_allow_html=True)
     
-    elif trend_type == "Recently Edited (Breaking News)" and 'wiki_changes' in st.session_state:
-        st.markdown("### 🔴 Breaking: Most Edited Wikipedia Articles")
-        st.info("High edit activity often indicates breaking news or developing stories")
+    with tab2:
+        st.markdown("### 🔍 Search Movies & TV Shows")
         
-        for i, change in enumerate(st.session_state.wiki_changes, 1):
-            with st.expander(f"{i:02d} | 📝 {change['title']} ({change['edits']} recent edits)", expanded=False):
-                st.write(f"**Recent Edits:** {change['edits']}")
-                st.write(f"**Size Change:** {change['size_change']:+} bytes")
-                if change['latest_comment']:
-                    st.write(f"**Latest Edit Comment:** {change['latest_comment']}")
+        search_query = st.text_input(
+            "Search by Title",
+            placeholder="e.g., 'Stranger Things', 'Oppenheimer'",
+            key="title_search"
+        )
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            search_media_type = st.selectbox(
+                "Media Type",
+                ["movie", "tv"],
+                format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
+                key="media_type_search"
+            )
+        
+        with col2:
+            search_year = st.number_input(
+                "Year (optional)",
+                min_value=0,
+                max_value=datetime.now().year + 1,
+                value=0,
+                key="search_year"
+            )
+        
+        if st.button("🔍 Search", key="search_titles", type="primary") and search_query:
+            with st.spinner(f"Searching for '{search_query}'..."):
+                year = None if search_year == 0 else search_year
+                results = search_tmdb(tmdb_key, query=search_query, media_type=search_media_type, year=year)
                 
-                # Similar analysis flow as above...
-
+                if results and results.get('results'):
+                    st.session_state.search_results = results['results']
+                    st.success(f"✅ Found {len(results['results'])} results")
+        
+        # Display search results (similar format to trending results)
+        if 'search_results' in st.session_state:
+            for i, item in enumerate(st.session_state.search_results[:20], 1):
+                # Similar display format as trending results
+                pass  # Use same format as above
+    
+    with tab3:
+        st.markdown("### 🏢 Browse by Production Company")
+        
+        company_search = st.text_input(
+            "Search Production Company",
+            placeholder="e.g., 'Warner Bros', 'Netflix', 'A24'",
+            key="company_search"
+        )
+        
+        if st.button("🔍 Search Companies", key="search_companies") and company_search:
+            with st.spinner("Searching companies..."):
+                companies = search_tmdb_companies(tmdb_key, company_search)
+                if companies:
+                    st.session_state.companies = companies
+                    st.success(f"✅ Found {len(companies)} companies")
+        
+        # Display companies and their content
+        if 'companies' in st.session_state:
+            for company in st.session_state.companies[:10]:
+                if st.button(f"🏢 {company['name']}", key=f"company_{company['id']}"):
+                    with st.spinner(f"Fetching content from {company['name']}..."):
+                        results = search_tmdb(tmdb_key, media_type='movie', company_id=company['id'])
+                        if results and results.get('results'):
+                            st.session_state[f"company_results_{company['id']}"] = results['results']
+                
+                # Display company results if available
+                if f"company_results_{company['id']}" in st.session_state:
+                    st.write(f"**Movies from {company['name']}:**")
+                    # Display movies (similar format as above)
 
 elif platform == "Reddit Analysis":
   # Hero-style header
