@@ -2379,7 +2379,7 @@ elif platform == "Podcast Trends":
         st.stop()
 
     # Navigation tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TODAY'S EPISODES", "THIS WEEK'S POPULAR"])
+    tab1, tab2 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH"])
     
     with tab1:
         st.markdown("### 🎙️ Top Podcasts by Genre")
@@ -2505,30 +2505,6 @@ elif platform == "Podcast Trends":
                     st.write(f"**Description:** {ep['description']}")
                     st.write(f"[Listen on Spotify]({ep['url']})")
 
-    with tab3:
-        st.markdown("### 📅 Today's New Episodes")
-        
-        if st.button("Get Today's Episodes", key="get_today", type="primary"):
-            if 'spotify_token' in st.session_state:
-                with st.spinner("Fetching today's new episodes..."):
-                    episodes = get_new_episodes_today(st.session_state.spotify_token)
-                    if episodes:
-                        st.session_state.today_episodes = episodes
-                        st.success(f"✅ Found {len(episodes)} episodes released today")
-                    else:
-                        st.info("No new episodes found for today yet. Check back later!")
-        
-        # Display today's episodes
-        if 'today_episodes' in st.session_state:
-            for i, ep in enumerate(st.session_state.today_episodes, 1):
-                with st.expander(f"{ep['name']} - {ep['show_name']}", expanded=False):
-                    st.write(f"**Duration:** {ep['duration_min']} minutes")
-                    st.write(f"**Description:** {ep['description']}")
-                    st.write(f"[Listen on Spotify]({ep['url']})")
-    
-    with tab4:
-        st.markdown("### 📈 This Week's Popular Episodes")
-        st.info("Coming soon: Track the most popular episodes from the past week")
 
 elif platform == "Movie & TV Trends":
     # Hero-style header
