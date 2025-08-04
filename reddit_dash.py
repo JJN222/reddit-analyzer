@@ -1345,18 +1345,19 @@ def search_podcasts_by_topic(token, topic, limit=20):
             data = response.json()
             episodes = []
             
-            # Debug: Check first episode structure
             items = data.get('episodes', {}).get('items', [])
-            if items:
-                st.write("DEBUG - First episode data keys:", items[0].keys())
-                if 'show' in items[0]:
-                    st.write("DEBUG - Show data:", items[0]['show'])
+            
+            # Very visible debug
+            st.warning(f"DEBUG: Found {len(items)} episodes")
+            if items and len(items) > 0:
+                st.json(items[0])  # This will show the entire first episode object
             
             for ep in items:
-                # The show data should be in ep['show']
+                # Try multiple ways to get show name
                 show_name = "Unknown Show"
                 
-                if 'show' in ep and isinstance(ep['show'], dict):
+                # Method 1: Standard location
+                if 'show' in ep and ep['show'] is not None:
                     show_name = ep['show'].get('name', 'Unknown Show')
                 
                 episode_data = {
@@ -1378,8 +1379,10 @@ def search_podcasts_by_topic(token, topic, limit=20):
             
     except Exception as e:
         st.error(f"❌ Error searching episodes: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
         return None
-    
+        
 def get_new_episodes_today(token, limit=20):
     """Get podcast episodes released today"""
     if not token:
