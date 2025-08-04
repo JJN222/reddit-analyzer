@@ -2543,17 +2543,18 @@ elif platform == "Movie & TV Trends":
         col1, col2 = st.columns([1, 2])
         with col1:
             year_filter = st.number_input(
-                "Year (optional)",
-                min_value=1900,
-                max_value=datetime.now().year + 1,
-                value=0,
-                key="year_filter"
-            )
+            "Year (optional - set to current year to disable)",
+            min_value=1900,
+            max_value=datetime.now().year + 1,
+            value=datetime.now().year,  # Default to current year
+            key="year_filter"
+        )
         
         if st.button("🎬 Get Trending", key="get_trending", type="primary"):
             with st.spinner(f"Fetching trending {media_type}s..."):
                 genre_id = None if selected_genre == "all" else selected_genre
-                year = None if year_filter == 0 else year_filter
+                year = None if year_filter == datetime.now().year else year_filter
+
                 
                 results = search_tmdb(tmdb_key, media_type=media_type, genre_id=genre_id, 
                                     year=year, sort_by=sort_by)
@@ -2647,16 +2648,16 @@ elif platform == "Movie & TV Trends":
         
         with col2:
             search_year = st.number_input(
-                "Year (optional)",
-                min_value=0,
+                "Year (optional - set to current year to disable)",
+                min_value=1900,
                 max_value=datetime.now().year + 1,
-                value=0,
+                value=datetime.now().year,
                 key="search_year"
             )
         
         if st.button("🔍 Search", key="search_titles", type="primary") and search_query:
             with st.spinner(f"Searching for '{search_query}'..."):
-                year = None if search_year == 0 else search_year
+                year = None if search_year == datetime.now().year else search_year
                 results = search_tmdb(tmdb_key, query=search_query, media_type=search_media_type, year=year)
                 
                 if results and results.get('results'):
