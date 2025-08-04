@@ -2352,7 +2352,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 
 elif platform == "Podcast Trends":
     # Get Spotify credentials
-    _, _, spotify_client_id, spotify_client_secret = get_api_keys()
+    _, _, spotify_client_id, spotify_client_secret, _ = get_api_keys()
     
     
     # Hero-style header
