@@ -1683,22 +1683,58 @@ def get_tmdb_item_details(api_key, item_id, media_type='movie'):
     except:
         return None
 
-def search_tmdb_companies(api_key, query):
-    """Search for production companies"""
+def search_tmdb_multiple_companies(api_key, company_ids, media_type='movie', sort_by='popularity.desc', year=None):
+    """Search TMDb for movies/TV shows from multiple companies (OR logic)"""
+    all_results = []
+    seen_ids = set()  # To avoid duplicates
+    
     try:
-        url = "https://api.themoviedb.org/3/search/company"
-        params = {
-            'api_key': api_key,
-            'query': query
-        }
+        # Make separate API calls for each company
+        for company_id in company_ids:
+            url = f"https://api.themoviedb.org/3/discover/{media_type}"
+            params = {
+                'api_key': api_key,
+                'sort_by': sort_by,
+                'page': 1,
+                'vote_count.gte': 50,  # Lower threshold for individual companies
+                'with_companies': company_id
+            }
+            
+            if year:
+                if media_type == 'movie':
+                    params['primary_release_year'] = year
+                else:
+                    params['first_air_date_year'] = year
+            
+            response = requests.get(url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                for item in data.get('results', []):
+                    item_id = item.get('id')
+                    if item_id not in seen_ids:
+                        seen_ids.add(item_id)
+                        all_results.append(item)
         
-        response = requests.get(url, params=params)
+        # Sort all results by the selected criteria
+        if all_results:
+            if sort_by == 'popularity.desc':
+                all_results.sort(key=lambda x: x.get('popularity', 0), reverse=True)
+            elif sort_by == 'vote_average.desc':
+                all_results.sort(key=lambda x: x.get('vote_average', 0), reverse=True)
+            elif sort_by == 'vote_count.desc':
+                all_results.sort(key=lambda x: x.get('vote_count', 0), reverse=True)
+            elif sort_by == 'release_date.desc' or sort_by == 'first_air_date.desc':
+                date_field = 'release_date' if media_type == 'movie' else 'first_air_date'
+                all_results.sort(key=lambda x: x.get(date_field, ''), reverse=True)
+            elif sort_by == 'revenue.desc':
+                all_results.sort(key=lambda x: x.get('revenue', 0), reverse=True)
         
-        if response.status_code == 200:
-            return response.json()['results']
-        return []
-    except:
-        return []
+        return {'results': all_results}
+        
+    except Exception as e:
+        st.error(f"TMDb API Error: {str(e)}")
+        return None
 
 def analyze_movie_tv_trend(title, overview, popularity, vote_average, media_type, 
                           genre_names, creator_name, api_key):
@@ -2557,7 +2593,8 @@ elif platform == "Movie & TV Trends":
         if st.button("🎬 Get Trending", key="get_trending", type="primary"):
             with st.spinner(f"Fetching trending {media_type}s..."):
                 genre_id = None if selected_genre == "all" else selected_genre
-                year = None if year_filter == datetime.now().year else year_filter
+                year = year_filter if use_year_filter else None
+
 
                 
                 results = search_tmdb(tmdb_key, media_type=media_type, genre_id=genre_id, 
@@ -2846,14 +2883,12 @@ elif platform == "Movie & TV Trends":
                 if st.button(f"🎬 Get Content from {len(selected_company_ids)} Companies", key="get_company_content", type="primary"):
                     selected_company_names = [company_options[cid] for cid in selected_company_ids]
                     
-                    # Combine company IDs into a comma-separated string for the API
-                    company_ids_string = ','.join(map(str, selected_company_ids))
-                    
                     with st.spinner(f"Fetching {company_media_type}s from {', '.join(selected_company_names[:3])}{'...' if len(selected_company_names) > 3 else ''}"):
-                        results = search_tmdb(
+                        # Use the new function for multiple companies
+                        results = search_tmdb_multiple_companies(
                             tmdb_key, 
-                            media_type=company_media_type, 
-                            company_id=company_ids_string,  # Pass all company IDs
+                            selected_company_ids,  # Pass list of IDs
+                            media_type=company_media_type,
                             sort_by=company_sort_by,
                             year=company_year
                         )
@@ -2862,7 +2897,7 @@ elif platform == "Movie & TV Trends":
                             st.session_state.company_content_results = results['results']
                             st.session_state.company_content_names = selected_company_names
                             st.session_state.company_content_media_type = company_media_type
-                            st.success(f"✅ Found {len(results['results'])} {company_media_type}s from selected companies")
+                            st.success(f"✅ Found {len(results['results'])} unique {company_media_type}s from selected companies")
                         else:
                             st.warning(f"No {company_media_type}s found for selected companies")
         
