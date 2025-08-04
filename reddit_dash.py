@@ -1346,18 +1346,26 @@ def search_podcasts_by_topic(token, topic, limit=20):
             episodes = []
             
             for ep in data.get('episodes', {}).get('items', []):
-                # Handle the nested show information more carefully
-                show_info = ep.get('show', {})
+                # The show data might be in different places
+                show_name = "Unknown Show"
+                
+                # Try to get show name from different possible locations
+                if 'show' in ep and ep['show']:
+                    show_name = ep['show'].get('name', 'Unknown Show')
+                
+                # Sometimes it might be directly in the episode
+                if show_name == "Unknown Show" and 'show_name' in ep:
+                    show_name = ep['show_name']
                 
                 episode_data = {
-                    'id': ep['id'],
-                    'name': ep['name'],
-                    'show_name': show_info.get('name', 'Unknown Show'),  # Safer access
-                    'description': ep['description'][:200] + '...' if len(ep.get('description', '')) > 200 else ep.get('description', ''),
-                    'release_date': ep['release_date'],
+                    'id': ep.get('id', ''),
+                    'name': ep.get('name', 'Unknown Episode'),
+                    'show_name': show_name,
+                    'description': ep.get('description', '')[:200] + '...' if len(ep.get('description', '')) > 200 else ep.get('description', ''),
+                    'release_date': ep.get('release_date', 'Unknown'),
                     'duration_min': ep.get('duration_ms', 0) // 60000,
-                    'url': ep['external_urls']['spotify'],
-                    'image': ep['images'][0]['url'] if ep.get('images') else None
+                    'url': ep.get('external_urls', {}).get('spotify', ''),
+                    'image': ep.get('images', [{}])[0].get('url', '') if ep.get('images') else None
                 }
                 episodes.append(episode_data)
             
