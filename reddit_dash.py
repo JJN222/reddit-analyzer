@@ -6,11 +6,64 @@ import time
 import openai
 import os
 
+# Password Protection System
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == os.getenv('APP_PASSWORD', 'defaultpassword'):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for password
+        st.markdown("""
+        <div style="margin-top: 100px; text-align: center;">
+            <h1 style="font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; text-transform: uppercase;">
+                Shorthand Studios <span style="color: #BCE5F7;">Login</span>
+            </h1>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.text_input(
+                "Enter Password", type="password", on_change=password_entered, key="password"
+            )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error
+        st.markdown("""
+        <div style="margin-top: 100px; text-align: center;">
+            <h1 style="font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; text-transform: uppercase;">
+                Shorthand Studios <span style="color: #BCE5F7;">Login</span>
+            </h1>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.text_input(
+                "Enter Password", type="password", on_change=password_entered, key="password"
+            )
+            st.error("😕 Password incorrect")
+        return False
+    else:
+        # Password correct
+        return True
+
 # Configure Streamlit page
 st.set_page_config(
   page_title="Shorthand Studios - Content Intelligence Platform",
   layout="wide"
 )
+
+# Check password before showing any content
+if not check_password():
+    st.stop()
 
 # Enhanced CSS for Shorthand Studios website styling
 st.markdown("""
