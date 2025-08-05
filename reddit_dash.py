@@ -367,6 +367,17 @@ creator_name = st.sidebar.text_input(
 
 st.sidebar.markdown("---")
 
+# ============ API KEY MANAGEMENT ============
+
+def get_api_keys():
+  """Get API keys from environment variables"""
+  openai_key = os.getenv('OPENAI_API_KEY', '')
+  youtube_key = os.getenv('YOUTUBE_API_KEY', '')
+  spotify_client_id = os.getenv('SPOTIFY_CLIENT_ID', '')
+  spotify_client_secret = os.getenv('SPOTIFY_CLIENT_SECRET', '')
+  tmdb_key = os.getenv('TMDB_API_KEY', '')
+  return openai_key, youtube_key, spotify_client_id, spotify_client_secret, tmdb_key
+
 # Get API keys from environment variables
 api_key, youtube_api_key, spotify_client_id, spotify_client_secret, tmdb_key = get_api_keys()
 
@@ -415,17 +426,6 @@ HEADERS = {
   'User-Agent': 'web:shorthand-reddit-analyzer:v1.0.0 (by /u/Ruhtorikal)',
   'Accept': 'application/json',
 }
-
-# ============ API KEY MANAGEMENT ============
-
-def get_api_keys():
-  """Get API keys from environment variables"""
-  openai_key = os.getenv('OPENAI_API_KEY', '')
-  youtube_key = os.getenv('YOUTUBE_API_KEY', '')
-  spotify_client_id = os.getenv('SPOTIFY_CLIENT_ID', '')
-  spotify_client_secret = os.getenv('SPOTIFY_CLIENT_SECRET', '')
-  tmdb_key = os.getenv('TMDB_API_KEY', '')
-  return openai_key, youtube_key, spotify_client_id, spotify_client_secret, tmdb_key
 
 # ============ REDDIT FUNCTIONS ============
 
