@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import time
 import openai
 import os
+import feedparser
 
 # Password Protection System
 def check_password():
@@ -347,7 +348,7 @@ st.sidebar.markdown("""
 
 platform = st.sidebar.selectbox(
   "Choose Platform",
-  ["Home", "Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends"],
+  ["Home", "Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends", "Google Trends"],
   key="platform_select"
 )
 
@@ -1996,8 +1997,6 @@ CONTROVERSY/DISCUSSION POINTS: What aspects would generate the most engagement a
 
 # ============ MAIN CONTENT ============
 
-# ============ MAIN CONTENT ============
-
 if platform == "Home":
     # Welcome section
     st.markdown("""
@@ -2012,7 +2011,7 @@ if platform == "Home":
     """, unsafe_allow_html=True)
     
     # Platform cards
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("""
@@ -2056,6 +2055,19 @@ if platform == "Home":
           </h3>
           <p style="font-size: 18px; line-height: 1.6;">
             Discover top podcasts by genre, search episodes by topic, and track what's trending in audio content.
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
+      
+    with col3:
+        # NEW: Google Trends card
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; min-height: 250px;">
+          <h3 style="font-size: 24px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">
+            Google Trends
+          </h3>
+          <p style="font-size: 18px; line-height: 1.6;">
+            Track what's trending on Google Search and create timely content around viral search terms.
           </p>
         </div>
         """, unsafe_allow_html=True)
@@ -3324,6 +3336,104 @@ elif platform == "Reddit Analysis":
       if st.button(f"{emoji} {subreddit}", key=f"btn_{subreddit}_{i}"):
         st.session_state.selected_subreddit = subreddit
         st.rerun()
+
+elif platform == "Google Trends":
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+            Google <span style="color: #BCE5F7;">Trends</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+            Discover what's trending on Google Search and create content around viral topics.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Get trending searches
+    st.markdown("### Currently Trending on Google")
+    
+    if st.button("Get Trending Searches", key="get_trends", type="primary"):
+        with st.spinner("Fetching Google Trends..."):            
+            try:
+                # Google Trends RSS feed
+                feed = feedparser.parse("https://trends.google.com/trends/trendingsearches/daily/rss?geo=US")
+                
+                trends = []
+                for entry in feed.entries[:20]:
+                    trends.append({
+                        'title': entry.title,
+                        'traffic': entry.get('ht_approx_traffic', 'N/A'),
+                        'link': entry.link,
+                        'published': entry.get('published', 'N/A')
+                    })
+                
+                if trends:
+                    st.session_state.google_trends = trends
+                    st.success(f"✅ Found {len(trends)} trending searches")
+                else:
+                    st.error("❌ No trends found")
+                    
+            except Exception as e:
+                st.error(f"❌ Error fetching trends: {str(e)}")
+    
+    # Display trends
+    if 'google_trends' in st.session_state:
+        for i, trend in enumerate(st.session_state.google_trends, 1):
+            with st.expander(f"{i:02d} | {trend['title']} ({trend['traffic']} searches)", expanded=False):
+                st.write(f"**Published:** {trend['published']}")
+                st.write(f"**Search Volume:** {trend['traffic']}")
+                st.write(f"[View on Google Trends]({trend['link']})")
+                
+                # AI Analysis
+                if api_key and st.button(f"{creator_name} Content Strategy", key=f"analyze_trend_{i}"):
+                    with st.spinner(f"Analyzing for {creator_name}..."):
+                        # Simple analysis without related queries
+                        prompt = f"""Analyze this trending Google search for {creator_name}'s content strategy:
+
+Trending Search: "{trend['title']}"
+Search Volume: {trend['traffic']}
+
+Provide a comprehensive content strategy for {creator_name}:
+
+TREND ANALYSIS: Why this is trending now (2-3 sentences)
+
+{creator_name.upper()} ANGLE: How {creator_name} should cover this topic
+
+VIDEO IDEAS: 3 specific video titles:
+- Title 1: [Specific title]
+- Title 2: [Specific title]  
+- Title 3: [Specific title]
+
+HOT TAKE: {creator_name}'s unique perspective
+
+TIMING: How urgent is this trend?
+
+HASHTAGS: Relevant hashtags for maximum reach"""
+                        
+                        try:
+                            import openai
+                            openai.api_key = api_key
+                            
+                            response = openai.ChatCompletion.create(
+                                model="gpt-4.1-nano",
+                                messages=[{"role": "user", "content": prompt}],
+                                max_tokens=600,
+                                timeout=30
+                            )
+                            
+                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                            st.markdown("""
+                            <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                AI Analysis <span style="color: #BCE5F7;">Results</span>
+                            </h3>
+                            """, unsafe_allow_html=True)
+                            st.write(response.choices[0].message.content)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            
+                        except Exception as e:
+                            st.error(f"❌ AI Analysis Error: {str(e)}")
+
 
 elif platform == "Saved Content":
   st.header("Saved Content")
