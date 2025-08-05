@@ -1555,6 +1555,68 @@ def get_new_episodes_today(token, limit=20):
             
     except Exception as e:
         return None
+    
+def get_itunes_top_podcasts(genre_id=None, limit=20):
+    """Get top podcasts from iTunes/Apple Podcasts"""
+    try:
+        # iTunes genre IDs for podcasts
+        genre_map = {
+            "all": None,
+            "business": 1321,
+            "comedy": 1303,
+            "education": 1304,
+            "fiction": 1483,
+            "government": 1511,
+            "health": 1512,
+            "history": 1487,
+            "kids": 1305,
+            "leisure": 1502,
+            "music": 1310,
+            "news": 1489,
+            "religion": 1314,
+            "science": 1533,
+            "society": 1324,
+            "sports": 1545,
+            "technology": 1318,
+            "true_crime": 1488,
+            "tv_film": 1309
+        }
+        
+        # Use the lookup URL for top podcasts
+        if genre_id:
+            url = f"https://itunes.apple.com/us/rss/toppodcasts/limit={limit}/genre={genre_id}/json"
+        else:
+            url = f"https://itunes.apple.com/us/rss/toppodcasts/limit={limit}/json"
+        
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            podcasts = []
+            
+            entries = data.get('feed', {}).get('entry', [])
+            
+            for i, entry in enumerate(entries, 1):
+                # Extract podcast data
+                podcast_data = {
+                    'rank': i,
+                    'name': entry.get('im:name', {}).get('label', 'Unknown'),
+                    'artist': entry.get('im:artist', {}).get('label', 'Unknown'),
+                    'summary': entry.get('summary', {}).get('label', 'No description')[:300] + '...',
+                    'image': entry.get('im:image', [{}])[-1].get('label', ''),  # Get largest image
+                    'url': entry.get('link', {}).get('attributes', {}).get('href', ''),
+                    'category': entry.get('category', {}).get('attributes', {}).get('label', 'Unknown'),
+                    'release_date': entry.get('im:releaseDate', {}).get('label', 'Unknown')
+                }
+                podcasts.append(podcast_data)
+            
+            return podcasts
+        else:
+            return None
+            
+    except Exception as e:
+        st.error(f"❌ Error fetching iTunes podcasts: {str(e)}")
+        return None
   
 # ============ GOOGLE TRENDS FUNCTIONS ============
 
@@ -2441,92 +2503,95 @@ elif platform == "Podcast Trends":
     tab1, tab2, tab3 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "YOUTUBE PODCASTS"])
     
     with tab1:
-        st.markdown("### 🎙️ Top Podcasts by Genre")
+        st.markdown("### 🎙️ Top Podcasts by Genre (Apple Podcasts Charts)")
         
         # Genre selection
         col1, col2 = st.columns([3, 1])
         with col1:
-            # Define genres with proper display names
+            # iTunes genre mapping
             genre_options = [
-                ("all", "All"),
-                ("comedy", "Comedy"),
-                ("news", "News"),
-                ("sports", "Sports"),
+                ("all", "All Genres"),
                 ("business", "Business"),
-                ("true crime", "True Crime"),
-                ("health & fitness", "Health & Fitness"),
-                ("technology", "Technology"),
-                ("society & culture", "Society & Culture"),
+                ("comedy", "Comedy"),
                 ("education", "Education"),
-                ("arts", "Arts"),
-                ("music", "Music"),
-                ("tv & film", "TV & Film"),
+                ("fiction", "Fiction"),
+                ("government", "Government"),
+                ("health", "Health & Fitness"),
                 ("history", "History"),
+                ("kids", "Kids & Family"),
+                ("leisure", "Leisure"),
+                ("music", "Music"),
+                ("news", "News"),
+                ("religion", "Religion & Spirituality"),
                 ("science", "Science"),
-                ("religion & spirituality", "Religion & Spirituality")
+                ("society", "Society & Culture"),
+                ("sports", "Sports"),
+                ("technology", "Technology"),
+                ("true_crime", "True Crime"),
+                ("tv_film", "TV & Film")
             ]
             
-            # Create display names and values
-            genre_display = [display for value, display in genre_options]
-            genre_values = [value for value, display in genre_options]
-            
-            # Use format_func to show title case but keep lowercase values
-            genre = st.selectbox(
+            selected_genre = st.selectbox(
                 "Select Genre",
-                options=genre_values,
+                options=[g[0] for g in genre_options],
                 format_func=lambda x: dict(genre_options).get(x, x),
                 key="podcast_genre"
             )
         
         with col2:
-            limit = st.number_input("Show top", min_value=5, max_value=50, value=10, key="podcast_limit")
+            limit = st.number_input("Show top", min_value=5, max_value=50, value=20, key="podcast_limit")
         
         if st.button("Get Top Podcasts", key="get_top_podcasts", type="primary"):
-            if 'spotify_token' in st.session_state:
-                with st.spinner(f"Fetching top {genre} podcasts..."):
-                    shows = search_podcasts_by_genre(st.session_state.spotify_token, genre, limit)
-                    if shows:
-                        st.session_state.top_podcasts = shows
-                        st.success(f"✅ Found top {len(shows)} {genre} podcasts")
+            # Genre ID mapping
+            genre_ids = {
+                "all": None,
+                "business": 1321,
+                "comedy": 1303,
+                "education": 1304,
+                "fiction": 1483,
+                "government": 1511,
+                "health": 1512,
+                "history": 1487,
+                "kids": 1305,
+                "leisure": 1502,
+                "music": 1310,
+                "news": 1489,
+                "religion": 1314,
+                "science": 1533,
+                "society": 1324,
+                "sports": 1545,
+                "technology": 1318,
+                "true_crime": 1488,
+                "tv_film": 1309
+            }
+            
+            genre_id = genre_ids.get(selected_genre)
+            genre_name = dict(genre_options).get(selected_genre, "All")
+            
+            with st.spinner(f"Fetching top {genre_name} podcasts from Apple Podcasts..."):
+                podcasts = get_itunes_top_podcasts(genre_id, limit)
+                
+                if podcasts:
+                    st.session_state.top_podcasts = podcasts
+                    st.success(f"✅ Found top {len(podcasts)} {genre_name} podcasts")
         
         # Display results
         if 'top_podcasts' in st.session_state:
-            for i, show in enumerate(st.session_state.top_podcasts, 1):
-                with st.expander(f"{i:02d} | 🎙️ {show['name']} by {show['publisher']}", expanded=False):
+            for podcast in st.session_state.top_podcasts:
+                with st.expander(f"#{podcast['rank']:02d} | 🎙️ {podcast['name']} - {podcast['artist']}", expanded=False):
                     col1, col2 = st.columns([1, 3])
                     
                     with col1:
-                        if show['image']:
-                            st.image(show['image'], width=150)
+                        if podcast['image']:
+                            st.image(podcast['image'], width=150)
                     
                     with col2:
-                        st.write(f"**Episodes:** {show['total_episodes']}")
-                        st.write(f"**Description:** {show['description']}")
-                        if show['explicit']:
-                            st.write("⚠️ Explicit Content")
-                        st.write(f"[Listen on Spotify]({show['url']})")
-                    
-                    # Get recent episodes button
-                    if st.button(f"Show Recent Episodes", key=f"btn_episodes_{show['id']}"):  # Changed key
-                        with st.spinner("Fetching episodes..."):
-                            episodes = get_show_episodes(st.session_state.spotify_token, show['id'], 5)
-                            if episodes:
-                                st.session_state[f"episodes_data_{show['id']}"] = episodes  # Changed key
-
-                    
-                    # Display episodes if fetched
-                    if f"episodes_data_{show['id']}" in st.session_state:  # Changed key
-                        st.write("**Recent Episodes:**")
-                        episodes = st.session_state[f"episodes_data_{show['id']}"]  # Changed key
-                        if episodes and isinstance(episodes, list):
-                            for ep in episodes:
-                                st.write(f"📻 **{ep['name']}** ({ep['duration_min']} min)")
-                                st.write(f"   Released: {ep['release_date']}")
-                                st.write(f"   {ep['description']}")
-                                st.write(f"   [Listen]({ep['url']})")
-                                st.write("---")
-                        else:
-                            st.write("No episodes available for this show.")
+                        st.markdown(f"**Rank:** #{podcast['rank']} in {podcast['category']}")
+                        st.write(f"**Host/Network:** {podcast['artist']}")
+                        st.write(f"**Description:** {podcast['summary']}")
+                        st.write(f"**Latest Release:** {podcast['release_date']}")
+                        if podcast['url']:
+                            st.write(f"[Listen on Apple Podcasts]({podcast['url']})")
     
     with tab2:
         st.markdown("### 🔍 Search Podcasts by Topic")
