@@ -2788,7 +2788,7 @@ elif platform == "Movie & TV Trends":
         st.stop()
     
     # Navigation tabs
-    tab1, tab2, tab3 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES"])
+    tab1, tab2 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES"])
     
     with tab1:
         st.markdown("### 🎬 Discover Trending Movies & Shows")
