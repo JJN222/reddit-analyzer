@@ -337,13 +337,70 @@ p, .stMarkdown {
 </style>
 """, unsafe_allow_html=True)
 
-# Enhanced Header with new design
-st.markdown("""
-<div class="hero-section">
-  <h1 class="hero-headline">Shorthand<br>Studios<span class="accent">.</span></h1>
-  <p class="tagline">Transform trending topics into compelling content with AI-powered insights for creators and publishers.</p>
-</div>
+# ============ SIDEBAR CONFIGURATION ============
+
+st.sidebar.markdown("""
+<h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
+  Platform <span style="color: #BCE5F7;">Selection</span>
+</h2>
 """, unsafe_allow_html=True)
+
+platform = st.sidebar.selectbox(
+  "Choose Platform",
+  ["Home", "Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends"],
+  key="platform_select"
+)
+
+st.sidebar.markdown("---")
+
+st.sidebar.markdown("""
+<h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
+  Creator <span style="color: #BCE5F7;">Settings</span>
+</h2>
+""", unsafe_allow_html=True)
+creator_name = st.sidebar.text_input(
+  "Creator/Show",
+  value="Bailey Sarian",
+  placeholder="e.g., Bailey Sarian, True Crime Creator, YouTuber",
+  key="creator_name_input"
+)
+
+st.sidebar.markdown("---")
+
+# Get API keys from environment variables
+api_key, youtube_api_key, spotify_client_id, spotify_client_secret, tmdb_key = get_api_keys()
+
+# API status - lower priority, less emphasized
+with st.sidebar.expander("🔑 API Status", expanded=False):
+  if api_key:
+    st.success("✅ AI analysis enabled")
+  else:
+    st.error("❌ AI analysis unavailable")
+  
+  if youtube_api_key:
+    st.success("✅ YouTube live data enabled")
+  else:
+    st.info("Using sample data")
+
+
+# Conditional Header - Large for Home, Small for other pages
+if platform == "Home":
+    # Full hero section for home page
+    st.markdown("""
+    <div class="hero-section">
+      <h1 class="hero-headline">Shorthand<br>Studios<span class="accent">.</span></h1>
+      <p class="tagline">Transform trending topics into compelling content with AI-powered insights for creators and publishers.</p>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    # Compact header for other pages
+    st.markdown("""
+    <div style="padding: 2rem 0 1rem 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 2rem;">
+      <h2 style="font-family: 'Inter', sans-serif; font-size: 36px; font-weight: 800; text-transform: uppercase; margin: 0;">
+        Shorthand Studios <span style="color: #BCE5F7;">.</span>
+      </h2>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Initialize session state
 if 'saved_posts' not in st.session_state:
@@ -1936,52 +1993,122 @@ CONTROVERSY/DISCUSSION POINTS: What aspects would generate the most engagement a
     except Exception as e:
         return f"AI Analysis Error: {str(e)}"
         
-# ============ SIDEBAR CONFIGURATION ============
-
-st.sidebar.markdown("""
-<h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
-  Platform <span style="color: #BCE5F7;">Selection</span>
-</h2>
-""", unsafe_allow_html=True)
-
-platform = st.sidebar.selectbox(
-  "Choose Platform",
-  ["Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends"],
-  key="platform_select"
-)
-
-st.sidebar.markdown("---")
-
-st.sidebar.markdown("""
-<h2 style="font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">
-  Creator <span style="color: #BCE5F7;">Settings</span>
-</h2>
-""", unsafe_allow_html=True)
-creator_name = st.sidebar.text_input(
-  "Creator/Show",
-  value="Bailey Sarian",
-  placeholder="e.g., Bailey Sarian, True Crime Creator, YouTuber",
-  key="creator_name_input"
-)
-
-st.sidebar.markdown("---")
-
-# Get API keys from environment variables
-api_key, youtube_api_key, spotify_client_id, spotify_client_secret, tmdb_key = get_api_keys()
-
-# API status - lower priority, less emphasized
-with st.sidebar.expander("🔑 API Status", expanded=False):
-  if api_key:
-    st.success("✅ AI analysis enabled")
-  else:
-    st.error("❌ AI analysis unavailable")
-  
-  if youtube_api_key:
-    st.success("✅ YouTube live data enabled")
-  else:
-    st.info("Using sample data")
 
 # ============ MAIN CONTENT ============
+
+# ============ MAIN CONTENT ============
+
+if platform == "Home":
+    # Welcome section
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+      <h2 style="font-size: 48px; font-weight: 800; text-transform: uppercase; margin-bottom: 2rem;">
+        Content Intelligence <span style="color: #BCE5F7;">Platform</span>
+      </h2>
+      <p style="font-size: 24px; font-weight: 300; line-height: 1.6; max-width: 800px;">
+        Discover what's trending across social media, analyze audience sentiment, and create content strategies powered by AI.
+      </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Platform cards
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; min-height: 250px;">
+          <h3 style="font-size: 24px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">
+            🔍 Reddit Analysis
+          </h3>
+          <p style="font-size: 18px; line-height: 1.6;">
+            Monitor viral discussions, analyze community sentiment, and discover content opportunities from Reddit's most engaging posts.
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; min-height: 250px;">
+          <h3 style="font-size: 24px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">
+            🎬 Movie & TV Trends
+          </h3>
+          <p style="font-size: 18px; line-height: 1.6;">
+            Track trending films and shows, analyze audience preferences, and create content around what's popular in entertainment.
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; min-height: 250px;">
+          <h3 style="font-size: 24px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">
+            📺 YouTube Intelligence
+          </h3>
+          <p style="font-size: 18px; line-height: 1.6;">
+            Find trending videos, analyze comments, and generate reaction strategies based on what's performing on YouTube.
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; min-height: 250px;">
+          <h3 style="font-size: 24px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">
+            🎙️ Podcast Trends
+          </h3>
+          <p style="font-size: 18px; line-height: 1.6;">
+            Discover top podcasts by genre, search episodes by topic, and track what's trending in audio content.
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Features section
+    st.markdown("""
+    <div style="margin: 4rem 0;">
+      <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 3rem; text-align: center;">
+        Key <span style="color: #BCE5F7;">Features</span>
+      </h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem;">
+          <div style="font-size: 48px; margin-bottom: 1rem;">🤖</div>
+          <h4 style="font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">AI Analysis</h4>
+          <p>Get personalized content strategies and hot takes based on your creator personality.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem;">
+          <div style="font-size: 48px; margin-bottom: 1rem;">📊</div>
+          <h4 style="font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">Real-Time Data</h4>
+          <p>Access trending content from Reddit, YouTube, podcasts, and entertainment.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem;">
+          <div style="font-size: 48px; margin-bottom: 1rem;">💡</div>
+          <h4 style="font-size: 20px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">Content Ideas</h4>
+          <p>Generate video titles, social media strategies, and engagement tactics.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Call to action
+    st.markdown("""
+    <div style="background: #BCE5F7; padding: 3rem; border-radius: 8px; text-align: center; margin: 4rem 0;">
+      <h3 style="font-size: 32px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem; color: #221F1F;">
+        Ready to Create Better Content?
+      </h3>
+      <p style="font-size: 20px; margin-bottom: 2rem; color: #221F1F;">
+        Select a platform from the sidebar to start analyzing trends and generating content ideas.
+      </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 if platform == "YouTube Intelligence":
   # Hero-style header
@@ -2500,7 +2627,7 @@ elif platform == "Podcast Trends":
         st.stop()
 
     # Navigation tabs
-    tab1, tab2, tab3 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "YOUTUBE PODCASTS"])
+    tab1, tab2 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH"])
     
     with tab1:
         st.markdown("### 🎙️ Top Podcasts by Genre (Apple Podcasts Charts)")
@@ -2629,62 +2756,6 @@ elif platform == "Podcast Trends":
                     st.write(f"**Description:** {ep['description']}")
                     st.write(f"[Listen on Spotify]({ep['url']})")
       
-    with tab3:
-        st.markdown("### 📺 Top Podcasts on YouTube")
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            yt_category = st.selectbox(
-                "Podcast Category",
-                ["general", "true crime", "comedy", "business", "news", "technology", 
-                "health", "sports", "education", "music", "politics"],
-                format_func=lambda x: x.title(),
-                key="yt_podcast_category"
-            )
-        
-        if st.button("Get YouTube Podcasts", key="get_yt_podcasts", type="primary"):
-            with st.spinner(f"Finding top {yt_category} podcasts on YouTube..."):
-                channels = get_youtube_podcast_channels(youtube_api_key, yt_category)
-                
-                if channels:
-                    st.session_state.yt_podcast_channels = channels
-                    st.success(f"✅ Found {len(channels)} podcast channels")
-        
-        if 'yt_podcast_channels' in st.session_state:
-            for i, channel in enumerate(st.session_state.yt_podcast_channels, 1):
-                with st.expander(f"{i:02d} | 📺 {channel['title']}", expanded=False):
-                    col1, col2 = st.columns([1, 3])
-                    
-                    with col1:
-                        if channel['thumbnail']:
-                            st.image(channel['thumbnail'], width=150)
-                    
-                    with col2:
-                        st.write(f"**Description:** {channel['description']}")
-                        st.write(f"[View Channel](https://youtube.com/channel/{channel['channel_id']})")
-                        
-                        # Get recent videos button
-                        if st.button(f"Show Recent Episodes", key=f"yt_episodes_{channel['channel_id']}"):
-                            # Reuse your existing channel video search
-                            with st.spinner("Fetching recent episodes..."):
-                                videos = search_youtube_videos(
-                                    channel['title'], 
-                                    youtube_api_key, 
-                                    search_type="channel",
-                                    max_results=5
-                                )
-                                if videos:
-                                    st.session_state[f"yt_episodes_{channel['channel_id']}"] = videos
-                    
-                    # Display episodes if fetched
-                    if f"yt_episodes_{channel['channel_id']}" in st.session_state:
-                        st.write("**Recent Episodes:**")
-                        for video in st.session_state[f"yt_episodes_{channel['channel_id']}"]:
-                            st.write(f"📹 **{video['title']}**")
-                            st.write(f"   Views: {video.get('views', 'N/A')}")
-                            st.write(f"   [Watch](https://youtube.com/watch?v={video['video_id']})")
-                            st.write("---")
-
 
 elif platform == "Movie & TV Trends":
     # Hero-style header
