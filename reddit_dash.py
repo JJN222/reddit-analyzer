@@ -2788,7 +2788,7 @@ elif platform == "Movie & TV Trends":
         st.stop()
     
     # Navigation tabs
-    tab1, tab2 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES"])
+    tab1, tab2, tab3 = st.tabs(["DISCOVER TRENDS", "SEARCH TITLES", "PRODUCTION COMPANY"])
     
     with tab1:
         st.markdown("### 🎬 Discover Trending Movies & Shows")
@@ -3139,6 +3139,150 @@ elif platform == "Movie & TV Trends":
                                 """, unsafe_allow_html=True)
                                 st.write(analysis)
                                 st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab3:
+        st.markdown("### 🏢 Search by Production Company")
+        
+        company_search = st.text_input(
+            "Enter Production Company Name",
+            placeholder="e.g., 'Paramount', 'Disney', 'Warner Bros', 'A24'",
+            key="company_search_input"
+        )
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            company_media_type = st.selectbox(
+                "Media Type",
+                ["movie", "tv"],
+                format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
+                key="company_media_type"
+            )
+        
+        with col2:
+            company_sort = st.selectbox(
+                "Sort By",
+                [("popularity.desc", "Most Popular"),
+                ("release_date.desc", "Newest First"),
+                ("vote_average.desc", "Highest Rated"),
+                ("vote_count.desc", "Most Voted")],
+                format_func=lambda x: x[1],
+                key="company_sort_select"
+            )
+        
+        if st.button("🔍 Search Company", key="search_company_btn", type="primary") and company_search:
+            with st.spinner(f"Searching for '{company_search}' productions..."):
+                # First, search for companies matching the name
+                companies = search_tmdb_companies(tmdb_key, company_search)
+                
+                if companies:
+                    st.success(f"✅ Found {len(companies)} companies matching '{company_search}'")
+                    
+                    # Get all company IDs
+                    company_ids = [str(company['id']) for company in companies]
+                    company_names = [company['name'] for company in companies]
+                    
+                    # Search for content from all these companies
+                    all_results = search_tmdb_multiple_companies(
+                        tmdb_key, 
+                        company_ids, 
+                        company_media_type, 
+                        company_sort[0] if isinstance(company_sort, tuple) else company_sort
+                    )
+                    
+                    if all_results and all_results.get('results'):
+                        st.session_state.company_content_results = all_results['results']
+                        st.session_state.company_content_names = company_names
+                        st.session_state.company_content_media_type = company_media_type
+                        
+                        # Show which companies were found
+                        with st.expander("Production Companies Found", expanded=True):
+                            for company in companies[:10]:  # Show max 10
+                                st.write(f"• **{company['name']}** (ID: {company['id']})")
+                        
+                        st.success(f"✅ Found {len(all_results['results'])} {company_media_type}s from these companies")
+                    else:
+                        st.warning("No content found from these production companies")
+                else:
+                    st.error(f"❌ No production companies found matching '{company_search}'")
+        
+        # Display results if they exist
+        if 'company_content_results' in st.session_state and st.session_state.company_content_results:
+            st.markdown("---")
+            
+            # Get genres for the selected media type
+            genres = get_tmdb_genres(tmdb_key, st.session_state.get('company_content_media_type', 'movie'))
+            
+            company_names_display = st.session_state.get('company_content_names', ['Companies'])
+            if len(company_names_display) > 3:
+                names_text = f"{', '.join(company_names_display[:3])} and {len(company_names_display) - 3} more"
+            else:
+                names_text = ', '.join(company_names_display)
+            
+            st.markdown(f"### Results from: {names_text}")
+            
+            for i, item in enumerate(st.session_state.company_content_results[:20], 1):
+                title = item.get('title') or item.get('name', 'Unknown')
+                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
+                
+                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' and len(release_date) >= 4 else 'N/A'})", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if item.get('poster_path'):
+                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
+                            st.image(poster_url, width=150)
+                    
+                    with col2:
+                        # Metrics
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
+                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
+                        
+                        # Get genre names
+                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
+                        if genre_names:
+                            st.write(f"**Genres:** {', '.join(genre_names)}")
+                    
+                    # AI Analysis button (same as other tabs)
+                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_company_{i}"):
+                        with st.spinner(f"Analyzing for {creator_name}..."):
+                            media_type_display = "movie" if 'title' in item else "TV show"
+                            analysis = analyze_movie_tv_trend(
+                                title,
+                                item.get('overview', ''),
+                                item.get('popularity', 0),
+                                item.get('vote_average', 0),
+                                media_type_display,
+                                genre_names,
+                                creator_name,
+                                api_key
+                            )
+                            
+                            if analysis:
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(analysis)
+                                st.markdown('</div>', unsafe_allow_html=True)
+
 
 elif platform == "Reddit Analysis":
   # Hero-style header
