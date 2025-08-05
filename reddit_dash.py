@@ -1206,6 +1206,65 @@ SERIES POTENTIAL: Could this become multiple videos?"""
   except Exception as e:
     return f"AI Analysis Error: {str(e)}"
   
+def get_youtube_podcast_channels(api_key=None, category="general", max_results=20):
+    """Get popular podcast channels from YouTube"""
+    if not api_key:
+        return None
+    
+    # Define search queries for different podcast categories
+    podcast_queries = {
+        "general": "podcast channel",
+        "true crime": "true crime podcast",
+        "comedy": "comedy podcast",
+        "business": "business podcast",
+        "news": "news podcast daily",
+        "technology": "tech podcast",
+        "health": "health wellness podcast",
+        "sports": "sports podcast",
+        "education": "educational podcast",
+        "music": "music podcast",
+        "politics": "political podcast"
+    }
+    
+    query = podcast_queries.get(category, "podcast channel")
+    
+    try:
+        url = "https://www.googleapis.com/youtube/v3/search"
+        params = {
+            'part': 'snippet',
+            'q': query,
+            'type': 'channel',
+            'order': 'relevance',
+            'maxResults': max_results,
+            'key': api_key
+        }
+        
+        response = requests.get(url, params=params, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            channels = []
+            
+            for item in data.get('items', []):
+                snippet = item.get('snippet', {})
+                
+                # Filter to ensure it's actually a podcast
+                title = snippet.get('title', '').lower()
+                description = snippet.get('description', '').lower()
+                
+                if 'podcast' in title or 'podcast' in description or 'show' in title:
+                    channel_data = {
+                        'channel_id': item.get('id', {}).get('channelId', ''),
+                        'title': snippet.get('title', 'Unknown'),
+                        'description': snippet.get('description', '')[:200] + '...',
+                        'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                    }
+                    channels.append(channel_data)
+            
+            return channels
+    except:
+        return None
+  
 # ============ SPOTIFY API FUNCTIONS ============
 
 def get_spotify_token(client_id, client_secret):
@@ -2379,7 +2438,7 @@ elif platform == "Podcast Trends":
         st.stop()
 
     # Navigation tabs
-    tab1, tab2 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH"])
+    tab1, tab2, tab3 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "YOUTUBE PODCASTS"])
     
     with tab1:
         st.markdown("### 🎙️ Top Podcasts by Genre")
@@ -2504,6 +2563,62 @@ elif platform == "Podcast Trends":
                     st.write(f"**Duration:** {ep['duration_min']} minutes")
                     st.write(f"**Description:** {ep['description']}")
                     st.write(f"[Listen on Spotify]({ep['url']})")
+      
+    with tab3:
+        st.markdown("### 📺 Top Podcasts on YouTube")
+        
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            yt_category = st.selectbox(
+                "Podcast Category",
+                ["general", "true crime", "comedy", "business", "news", "technology", 
+                "health", "sports", "education", "music", "politics"],
+                format_func=lambda x: x.title(),
+                key="yt_podcast_category"
+            )
+        
+        if st.button("Get YouTube Podcasts", key="get_yt_podcasts", type="primary"):
+            with st.spinner(f"Finding top {yt_category} podcasts on YouTube..."):
+                channels = get_youtube_podcast_channels(youtube_api_key, yt_category)
+                
+                if channels:
+                    st.session_state.yt_podcast_channels = channels
+                    st.success(f"✅ Found {len(channels)} podcast channels")
+        
+        if 'yt_podcast_channels' in st.session_state:
+            for i, channel in enumerate(st.session_state.yt_podcast_channels, 1):
+                with st.expander(f"{i:02d} | 📺 {channel['title']}", expanded=False):
+                    col1, col2 = st.columns([1, 3])
+                    
+                    with col1:
+                        if channel['thumbnail']:
+                            st.image(channel['thumbnail'], width=150)
+                    
+                    with col2:
+                        st.write(f"**Description:** {channel['description']}")
+                        st.write(f"[View Channel](https://youtube.com/channel/{channel['channel_id']})")
+                        
+                        # Get recent videos button
+                        if st.button(f"Show Recent Episodes", key=f"yt_episodes_{channel['channel_id']}"):
+                            # Reuse your existing channel video search
+                            with st.spinner("Fetching recent episodes..."):
+                                videos = search_youtube_videos(
+                                    channel['title'], 
+                                    youtube_api_key, 
+                                    search_type="channel",
+                                    max_results=5
+                                )
+                                if videos:
+                                    st.session_state[f"yt_episodes_{channel['channel_id']}"] = videos
+                    
+                    # Display episodes if fetched
+                    if f"yt_episodes_{channel['channel_id']}" in st.session_state:
+                        st.write("**Recent Episodes:**")
+                        for video in st.session_state[f"yt_episodes_{channel['channel_id']}"]:
+                            st.write(f"📹 **{video['title']}**")
+                            st.write(f"   Views: {video.get('views', 'N/A')}")
+                            st.write(f"   [Watch](https://youtube.com/watch?v={video['video_id']})")
+                            st.write("---")
 
 
 elif platform == "Movie & TV Trends":
