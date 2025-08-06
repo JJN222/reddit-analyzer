@@ -2803,21 +2803,28 @@ elif platform == "Podcast Trends":
     with tab3:
         st.markdown("### 🎧 Top Episodes by Genre")
         
-        # Genre selection
+        # Complete genre selection with all categories
         genre_options = [
-            ("all", "All Genres"),
-            ("business", "Business"),
-            ("comedy", "Comedy"),
-            ("education", "Education"),
-            ("fiction", "Fiction"),
-            ("health", "Health & Fitness"),
-            ("history", "History"),
+            ("all", "All Categories"),
             ("news", "News"),
-            ("science", "Science"),
+            ("comedy", "Comedy"),
             ("society", "Society & Culture"),
+            ("business", "Business"),
+            ("true_crime", "True Crime"),
             ("sports", "Sports"),
+            ("health", "Health & Fitness"),
+            ("religion", "Religion & Spirituality"),
+            ("arts", "Arts"),
+            ("education", "Education"),
+            ("history", "History"),
+            ("tv_film", "TV & Film"),
+            ("science", "Science"),
             ("technology", "Technology"),
-            ("true_crime", "True Crime")
+            ("music", "Music"),
+            ("kids", "Kids & Family"),
+            ("leisure", "Leisure"),
+            ("fiction", "Fiction"),
+            ("government", "Government")
         ]
         
         episode_genre = st.selectbox(
@@ -2830,42 +2837,51 @@ elif platform == "Podcast Trends":
         if st.button("Get Top Episodes", key="get_top_episodes", type="primary"):
             genre_ids = {
                 "all": None,
-                "business": 1321,
-                "comedy": 1303,
-                "education": 1304,
-                "fiction": 1483,
-                "health": 1512,
-                "history": 1487,
                 "news": 1489,
-                "science": 1533,
+                "comedy": 1303,
                 "society": 1324,
+                "business": 1321,
+                "true_crime": 1488,
                 "sports": 1545,
+                "health": 1512,
+                "religion": 1314,
+                "arts": 1301,
+                "education": 1304,
+                "history": 1487,
+                "tv_film": 1309,
+                "science": 1533,
                 "technology": 1318,
-                "true_crime": 1488
+                "music": 1310,
+                "kids": 1305,
+                "leisure": 1502,
+                "fiction": 1483,
+                "government": 1511
             }
             
             genre_id = genre_ids.get(episode_genre)
             genre_name = dict(genre_options).get(episode_genre, "All")
             
             with st.spinner(f"Fetching top episodes in {genre_name}..."):
-                # Get top 10 podcasts in genre
-                podcasts = get_itunes_top_podcasts(genre_id, limit=10)
+                # Get top podcasts in genre
+                podcasts = get_itunes_top_podcasts(genre_id, limit=20)
                 
                 if podcasts:
                     all_episodes = []
                     
-                    # Get episodes from top 5 podcasts
-                    for podcast in podcasts[:5]:
+                    # Collect episodes with their parent podcast's rank
+                    for podcast in podcasts:
                         if podcast['url']:
-                            # Extract podcast ID from iTunes URL
                             podcast_id = podcast['url'].split('/id')[-1].split('?')[0]
-                            episodes = get_itunes_podcast_episodes(podcast_id, limit=3)
+                            episodes = get_itunes_podcast_episodes(podcast_id, limit=1)  # Get only latest episode
                             
-                            # Add podcast info to each episode
                             for ep in episodes:
                                 ep['podcast_name'] = podcast['name']
                                 ep['podcast_artist'] = podcast['artist']
+                                ep['podcast_rank'] = podcast['rank']  # Store the podcast's rank
                                 all_episodes.append(ep)
+                    
+                    # Sort episodes by their podcast's rank to maintain Apple's order
+                    all_episodes.sort(key=lambda x: x['podcast_rank'])
                     
                     if all_episodes:
                         st.session_state.top_genre_episodes = all_episodes
@@ -2873,11 +2889,12 @@ elif platform == "Podcast Trends":
                     else:
                         st.warning("No episodes found. Try a different genre.")
         
-        # Display top episodes
+        # Display top episodes in order
         if 'top_genre_episodes' in st.session_state:
             st.markdown("---")
             for i, ep in enumerate(st.session_state.top_genre_episodes, 1):
-                with st.expander(f"{i:02d} | {ep['title'][:60]}{'...' if len(ep['title']) > 60 else ''} - {ep['podcast_name']}", expanded=False):
+                # Format matching your image: "01 | Episode Title - Podcast Name"
+                with st.expander(f"{i:02d} | {ep['title']} - {ep['podcast_name']}", expanded=False):
                     st.write(f"**Podcast:** {ep['podcast_name']} by {ep['podcast_artist']}")
                     st.write(f"**Published:** {ep['published']}")
                     st.write(f"**Duration:** {ep['duration']}")
