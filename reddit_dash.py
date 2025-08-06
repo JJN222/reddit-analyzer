@@ -7,9 +7,19 @@ import openai
 import os
 import feedparser
 
-# Password Protection System
+# At the very top, after imports
+if "password_correct" not in st.session_state:
+    st.session_state.password_correct = False
+if "current_platform" not in st.session_state:
+    st.session_state.current_platform = "Home"
+
+# Modified password check
 def check_password():
     """Returns `True` if the user had the correct password."""
+    
+    # If already authenticated, return True
+    if st.session_state.password_correct:
+        return True
     
     def password_entered():
         """Checks whether a password entered by the user is correct."""
@@ -19,42 +29,25 @@ def check_password():
         else:
             st.session_state["password_correct"] = False
 
-    if "password_correct" not in st.session_state:
-        # First run, show input for password
-        st.markdown("""
-        <div style="margin-top: 100px; text-align: center;">
-            <h1 style="font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; text-transform: uppercase;">
-                Shorthand Studios <span style="color: #BCE5F7;">Login</span>
-            </h1>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.text_input(
-                "Enter Password", type="password", on_change=password_entered, key="password"
-            )
-        return False
-    elif not st.session_state["password_correct"]:
-        # Password not correct, show input + error
-        st.markdown("""
-        <div style="margin-top: 100px; text-align: center;">
-            <h1 style="font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; text-transform: uppercase;">
-                Shorthand Studios <span style="color: #BCE5F7;">Login</span>
-            </h1>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.text_input(
-                "Enter Password", type="password", on_change=password_entered, key="password"
-            )
-            st.error("😕 Password incorrect")
-        return False
-    else:
-        # Password correct
-        return True
+    # Show login screen
+    st.markdown("""
+    <div style="margin-top: 100px; text-align: center;">
+        <h1 style="font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; text-transform: uppercase;">
+            Shorthand Studios <span style="color: #BCE5F7;">Login</span>
+        </h1>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.text_input(
+            "Enter Password", type="password", on_change=password_entered, key="password"
+        )
+        # Only show error if password was attempted and wrong
+        if "password" in st.session_state and not st.session_state.password_correct:
+            st.error("❌ Password incorrect")
+    
+    return False
 
 # Configure Streamlit page
 st.set_page_config(
@@ -347,10 +340,14 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 
 platform = st.sidebar.selectbox(
-  "Choose Platform",
-  ["Home", "Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends", "Google Trends"],
-  key="platform_select"
+    "Choose Platform",
+    ["Home", "Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends"],
+    key="platform_select",
+    index=["Home", "Reddit Analysis", "YouTube Intelligence", "Movie & TV Trends", "Podcast Trends"].index(
+        st.session_state.get("current_platform", "Home")
+    )
 )
+st.session_state.current_platform = platform
 
 st.sidebar.markdown("---")
 
