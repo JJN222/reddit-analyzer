@@ -1673,6 +1673,39 @@ def get_itunes_top_podcasts(genre_id=None, limit=20):
     except Exception as e:
         st.error(f"❌ Error fetching iTunes podcasts: {str(e)}")
         return None
+
+def get_itunes_podcast_episodes(podcast_id, limit=5):
+    """Get recent episodes for a specific podcast from iTunes"""
+    try:
+        # iTunes lookup API to get podcast details and feed URL
+        lookup_url = f"https://itunes.apple.com/lookup?id={podcast_id}"
+        response = requests.get(lookup_url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('results'):
+                podcast_info = data['results'][0]
+                feed_url = podcast_info.get('feedUrl')
+                
+                if feed_url:
+                    # Parse the podcast RSS feed
+                    feed = feedparser.parse(feed_url)
+                    episodes = []
+                    
+                    for entry in feed.entries[:limit]:
+                        episode_data = {
+                            'title': entry.get('title', 'Unknown'),
+                            'published': entry.get('published', 'Unknown'),
+                            'duration': entry.get('itunes_duration', 'Unknown'),
+                            'description': entry.get('summary', '')[:300] + '...',
+                            'link': entry.get('link', '')
+                        }
+                        episodes.append(episode_data)
+                    
+                    return episodes
+        return []
+    except:
+        return []
   
 # ============ GOOGLE TRENDS FUNCTIONS ============
 
@@ -2637,7 +2670,8 @@ elif platform == "Podcast Trends":
         st.stop()
 
     # Navigation tabs
-    tab1, tab2 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH"])
+    tab1, tab2, tab3 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TOP EPISODES"])
+
     
     with tab1:
         st.markdown("### 🎙️ Top Podcasts by Genre (Apple Podcasts Charts)")
