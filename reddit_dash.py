@@ -2680,14 +2680,8 @@ elif platform == "Podcast Trends":
         tab_list = ["TOP PODCASTS", "TOPIC SEARCH", "TOP EPISODES"]
         tabs = st.tabs(tab_list)
         
-        # Determine which tab to show content in based on any button clicks
-        if 'get_top_episodes' in st.session_state and st.session_state.get_top_episodes:
-            active_tab_index = 2
-            st.session_state.podcast_active_tab = 2
-            # Reset the button state
-            st.session_state.get_top_episodes = False
-        else:
-            active_tab_index = st.session_state.podcast_active_tab
+        # Simply use the stored active tab
+        active_tab_index = st.session_state.podcast_active_tab
     
     # TAB 1: TOP PODCASTS
     with tabs[0]:
@@ -2858,7 +2852,6 @@ elif platform == "Podcast Trends":
         if st.button("Get Top Episodes", key="get_top_episodes", type="primary"):
             # Set flag to keep this tab active
             st.session_state.podcast_active_tab = 2
-            st.session_state.get_top_episodes = True
             
             genre_ids = {
                 "all": None,
@@ -2967,7 +2960,7 @@ CROSS-PLATFORM: How to leverage this across YouTube, TikTok, Instagram"""
                                 
                             except Exception as e:
                                 st.error(f"❌ AI Analysis Error: {str(e)}")
-                                
+
 elif platform == "Movie & TV Trends":
     # Hero-style header
     st.markdown("""
@@ -3263,57 +3256,7 @@ elif platform == "Movie & TV Trends":
                                 """, unsafe_allow_html=True)
                                 st.write(analysis)
                                 st.markdown('</div>', unsafe_allow_html=True)
-    
-    
-            company_names_display = st.session_state.get('company_content_names', ['Companies'])
-            if len(company_names_display) > 3:
-                names_text = f"{', '.join(company_names_display[:3])} and {len(company_names_display) - 3} more"
-            else:
-                names_text = ', '.join(company_names_display)
-            
-            st.markdown(f"### Results from: {names_text}")
-            
-            # Get genres for the selected media type
-            genres = get_tmdb_genres(tmdb_key, st.session_state.get('company_content_media_type', 'movie'))
-            
-            for i, item in enumerate(st.session_state.company_content_results[:20], 1):
-                title = item.get('title') or item.get('name', 'Unknown')
-                release_date = item.get('release_date') or item.get('first_air_date', 'Unknown')
-                
-                with st.expander(f"{i:02d} | {title} ({release_date[:4] if release_date != 'Unknown' and len(release_date) >= 4 else 'N/A'})", expanded=False):
-                    col1, col2 = st.columns([1, 3])
-                    
-                    with col1:
-                        if item.get('poster_path'):
-                            poster_url = f"https://image.tmdb.org/t/p/w200{item['poster_path']}"
-                            st.image(poster_url, width=150)
-                    
-                    with col2:
-                        # Metrics
-                        st.markdown(f"""
-                        <div style="display: flex; gap: 2rem; margin-bottom: 1rem;">
-                            <div>
-                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">⭐ {item.get('vote_average', 0):.1f}</p>
-                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Rating</p>
-                            </div>
-                            <div>
-                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('vote_count', 0):,}</p>
-                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Votes</p>
-                            </div>
-                            <div>
-                                <p style="font-size: 24px; font-weight: 800; color: #BCE5F7; margin: 0;">{item.get('popularity', 0):.0f}</p>
-                                <p style="font-size: 12px; text-transform: uppercase; color: #666;">Popularity</p>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
                         
-                        st.write(f"**Overview:** {item.get('overview', 'No overview available.')}")
-                        
-                        # Get genre names
-                        genre_names = [genres.get(gid, 'Unknown') for gid in item.get('genre_ids', [])]
-                        if genre_names:
-                            st.write(f"**Genres:** {', '.join(genre_names)}")
-                    
                     # AI Analysis (same as before)
                     if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_company_{i}"):
                         with st.spinner(f"Analyzing for {creator_name}..."):
