@@ -2645,7 +2645,6 @@ elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret, _ = get_api_keys()
     
-    
     # Hero-style header
     st.markdown("""
     <div style="margin-bottom: 4rem;">
@@ -2669,13 +2668,29 @@ elif platform == "Podcast Trends":
         st.error("❌ Please add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to Railway environment variables")
         st.stop()
 
-    # Navigation tabs
-    tab1, tab2, tab3 = st.tabs(
-        ["TOP PODCASTS", "TOPIC SEARCH", "TOP EPISODES"],
-        key="podcast_tabs"  # Adding a key makes Streamlit remember the selected tab
-    )
+    # Initialize tab state
+    if 'podcast_active_tab' not in st.session_state:
+        st.session_state.podcast_active_tab = 0
+
+    # Create container for tabs
+    tab_container = st.container()
     
-    with tab1:
+    with tab_container:
+        # Create tabs
+        tab_list = ["TOP PODCASTS", "TOPIC SEARCH", "TOP EPISODES"]
+        tabs = st.tabs(tab_list)
+        
+        # Determine which tab to show content in based on any button clicks
+        if 'get_top_episodes' in st.session_state and st.session_state.get_top_episodes:
+            active_tab_index = 2
+            st.session_state.podcast_active_tab = 2
+            # Reset the button state
+            st.session_state.get_top_episodes = False
+        else:
+            active_tab_index = st.session_state.podcast_active_tab
+    
+    # TAB 1: TOP PODCASTS
+    with tabs[0]:
         st.markdown("### 🎙️ Top Podcasts by Genre (Apple Podcasts Charts)")
         
         # Genre selection
@@ -2714,7 +2729,8 @@ elif platform == "Podcast Trends":
         with col2:
             limit = st.number_input("Show top", min_value=5, max_value=50, value=20, key="podcast_limit")
         
-        if st.button("Get Top Podcasts", key="get_top_podcasts", type="primary"):
+        if st.button("Get Top Podcasts", key="get_top_podcasts_btn", type="primary"):
+            st.session_state.podcast_active_tab = 0
             # Genre ID mapping
             genre_ids = {
                 "all": None,
@@ -2766,7 +2782,8 @@ elif platform == "Podcast Trends":
                         if podcast['url']:
                             st.write(f"[Listen on Apple Podcasts]({podcast['url']})")
     
-    with tab2:
+    # TAB 2: TOPIC SEARCH
+    with tabs[1]:
         st.markdown("### 🔍 Search Podcasts by Topic")
         
         # Topic search
@@ -2777,6 +2794,7 @@ elif platform == "Podcast Trends":
         )
         
         if st.button("Search Episodes", key="search_topic_btn", type="primary") and search_topic:
+            st.session_state.podcast_active_tab = 1
             if 'spotify_token' in st.session_state:
                 with st.spinner(f"Searching for episodes about '{search_topic}'..."):
                     episodes = search_podcasts_by_topic(st.session_state.spotify_token, search_topic)
@@ -2801,8 +2819,9 @@ elif platform == "Podcast Trends":
                     st.write(f"**Duration:** {ep['duration_min']} minutes")
                     st.write(f"**Description:** {ep['description']}")
                     st.write(f"[Listen on Spotify]({ep['url']})")
-
-    with tab3:
+    
+    # TAB 3: TOP EPISODES
+    with tabs[2]:
         st.markdown("### 🎧 Top Episodes by Genre")
         
         # Complete genre selection with all categories
@@ -2837,6 +2856,10 @@ elif platform == "Podcast Trends":
         )
         
         if st.button("Get Top Episodes", key="get_top_episodes", type="primary"):
+            # Set flag to keep this tab active
+            st.session_state.podcast_active_tab = 2
+            st.session_state.get_top_episodes = True
+            
             genre_ids = {
                 "all": None,
                 "news": 1489,
@@ -2909,18 +2932,18 @@ elif platform == "Podcast Trends":
                         with st.spinner(f"Analyzing for {creator_name}..."):
                             prompt = f"""Analyze this podcast episode for {creator_name}'s content strategy:
 
-    Episode: "{ep['title']}"
-    Podcast: {ep['podcast_name']}
-    Description: {ep['description']}
+Episode: "{ep['title']}"
+Podcast: {ep['podcast_name']}
+Description: {ep['description']}
 
-    Provide content ideas for {creator_name}:
+Provide content ideas for {creator_name}:
 
-    REACTION ANGLE: How {creator_name} could react to or discuss this episode
-    VIDEO TITLE: Specific title for {creator_name}'s video
-    KEY TOPICS: Main points to cover based on this episode
-    HOT TAKE: {creator_name}'s unique perspective
-    FORMAT: Best video format (reaction, analysis, story-time, etc.)
-    CROSS-PLATFORM: How to leverage this across YouTube, TikTok, Instagram"""
+REACTION ANGLE: How {creator_name} could react to or discuss this episode
+VIDEO TITLE: Specific title for {creator_name}'s video
+KEY TOPICS: Main points to cover based on this episode
+HOT TAKE: {creator_name}'s unique perspective
+FORMAT: Best video format (reaction, analysis, story-time, etc.)
+CROSS-PLATFORM: How to leverage this across YouTube, TikTok, Instagram"""
                             
                             try:
                                 import openai
@@ -2943,8 +2966,8 @@ elif platform == "Podcast Trends":
                                 st.markdown('</div>', unsafe_allow_html=True)
                                 
                             except Exception as e:
-                                st.error(f"❌ AI Analysis Error: {str(e)}")      
-
+                                st.error(f"❌ AI Analysis Error: {str(e)}")
+                                
 elif platform == "Movie & TV Trends":
     # Hero-style header
     st.markdown("""
