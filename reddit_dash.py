@@ -2670,8 +2670,10 @@ elif platform == "Podcast Trends":
         st.stop()
 
     # Navigation tabs
-    tab1, tab2, tab3 = st.tabs(["TOP PODCASTS", "TOPIC SEARCH", "TOP EPISODES"])
-
+    tab1, tab2, tab3 = st.tabs(
+        ["TOP PODCASTS", "TOPIC SEARCH", "TOP EPISODES"],
+        key="podcast_tabs"  # Adding a key makes Streamlit remember the selected tab
+    )
     
     with tab1:
         st.markdown("### 🎙️ Top Podcasts by Genre (Apple Podcasts Charts)")
