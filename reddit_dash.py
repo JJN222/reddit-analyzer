@@ -28,6 +28,7 @@ def check_password():
             del st.session_state["password"]  # Don't store password
         else:
             st.session_state["password_correct"] = False
+            st.session_state["password_attempted"] = True  # Add this flag
 
     # Show login screen
     st.markdown("""
@@ -43,8 +44,8 @@ def check_password():
         st.text_input(
             "Enter Password", type="password", on_change=password_entered, key="password"
         )
-        # Only show error if password was attempted and wrong
-        if "password" in st.session_state and not st.session_state.password_correct:
+        # Only show error if password was attempted
+        if st.session_state.get("password_attempted", False):
             st.error("❌ Password incorrect")
     
     return False
