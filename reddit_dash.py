@@ -2877,7 +2877,7 @@ elif platform == "Podcast Trends":
         if 'top_genre_episodes' in st.session_state:
             st.markdown("---")
             for i, ep in enumerate(st.session_state.top_genre_episodes, 1):
-                with st.expander(f"{i:02d} | {ep['title'][:80]}{'...' if len(ep['title']) > 80 else ''}", expanded=False):
+                with st.expander(f"{i:02d} | {ep['title'][:60]}{'...' if len(ep['title']) > 60 else ''} - {ep['podcast_name']}", expanded=False):
                     st.write(f"**Podcast:** {ep['podcast_name']} by {ep['podcast_artist']}")
                     st.write(f"**Published:** {ep['published']}")
                     st.write(f"**Duration:** {ep['duration']}")
