@@ -2799,7 +2799,132 @@ elif platform == "Podcast Trends":
                     st.write(f"**Duration:** {ep['duration_min']} minutes")
                     st.write(f"**Description:** {ep['description']}")
                     st.write(f"[Listen on Spotify]({ep['url']})")
-      
+
+    with tab3:
+        st.markdown("### 🎧 Top Episodes by Genre")
+        
+        # Genre selection
+        genre_options = [
+            ("all", "All Genres"),
+            ("business", "Business"),
+            ("comedy", "Comedy"),
+            ("education", "Education"),
+            ("fiction", "Fiction"),
+            ("health", "Health & Fitness"),
+            ("history", "History"),
+            ("news", "News"),
+            ("science", "Science"),
+            ("society", "Society & Culture"),
+            ("sports", "Sports"),
+            ("technology", "Technology"),
+            ("true_crime", "True Crime")
+        ]
+        
+        episode_genre = st.selectbox(
+            "Select Genre for Top Episodes",
+            options=[g[0] for g in genre_options],
+            format_func=lambda x: dict(genre_options).get(x, x),
+            key="episode_genre"
+        )
+        
+        if st.button("Get Top Episodes", key="get_top_episodes", type="primary"):
+            genre_ids = {
+                "all": None,
+                "business": 1321,
+                "comedy": 1303,
+                "education": 1304,
+                "fiction": 1483,
+                "health": 1512,
+                "history": 1487,
+                "news": 1489,
+                "science": 1533,
+                "society": 1324,
+                "sports": 1545,
+                "technology": 1318,
+                "true_crime": 1488
+            }
+            
+            genre_id = genre_ids.get(episode_genre)
+            genre_name = dict(genre_options).get(episode_genre, "All")
+            
+            with st.spinner(f"Fetching top episodes in {genre_name}..."):
+                # Get top 10 podcasts in genre
+                podcasts = get_itunes_top_podcasts(genre_id, limit=10)
+                
+                if podcasts:
+                    all_episodes = []
+                    
+                    # Get episodes from top 5 podcasts
+                    for podcast in podcasts[:5]:
+                        if podcast['url']:
+                            # Extract podcast ID from iTunes URL
+                            podcast_id = podcast['url'].split('/id')[-1].split('?')[0]
+                            episodes = get_itunes_podcast_episodes(podcast_id, limit=3)
+                            
+                            # Add podcast info to each episode
+                            for ep in episodes:
+                                ep['podcast_name'] = podcast['name']
+                                ep['podcast_artist'] = podcast['artist']
+                                all_episodes.append(ep)
+                    
+                    if all_episodes:
+                        st.session_state.top_genre_episodes = all_episodes
+                        st.success(f"✅ Found {len(all_episodes)} recent episodes from top {genre_name} podcasts")
+                    else:
+                        st.warning("No episodes found. Try a different genre.")
+        
+        # Display top episodes
+        if 'top_genre_episodes' in st.session_state:
+            st.markdown("---")
+            for i, ep in enumerate(st.session_state.top_genre_episodes, 1):
+                with st.expander(f"{i:02d} | {ep['title'][:80]}{'...' if len(ep['title']) > 80 else ''}", expanded=False):
+                    st.write(f"**Podcast:** {ep['podcast_name']} by {ep['podcast_artist']}")
+                    st.write(f"**Published:** {ep['published']}")
+                    st.write(f"**Duration:** {ep['duration']}")
+                    st.write(f"**Description:** {ep['description']}")
+                    if ep.get('link'):
+                        st.write(f"[Listen to Episode]({ep['link']})")
+                    
+                    # AI Analysis for episode
+                    if api_key and st.button(f"🤖 {creator_name} Content Ideas", key=f"analyze_ep_{i}"):
+                        with st.spinner(f"Analyzing for {creator_name}..."):
+                            prompt = f"""Analyze this podcast episode for {creator_name}'s content strategy:
+
+    Episode: "{ep['title']}"
+    Podcast: {ep['podcast_name']}
+    Description: {ep['description']}
+
+    Provide content ideas for {creator_name}:
+
+    REACTION ANGLE: How {creator_name} could react to or discuss this episode
+    VIDEO TITLE: Specific title for {creator_name}'s video
+    KEY TOPICS: Main points to cover based on this episode
+    HOT TAKE: {creator_name}'s unique perspective
+    FORMAT: Best video format (reaction, analysis, story-time, etc.)
+    CROSS-PLATFORM: How to leverage this across YouTube, TikTok, Instagram"""
+                            
+                            try:
+                                import openai
+                                openai.api_key = api_key
+                                
+                                response = openai.ChatCompletion.create(
+                                    model="gpt-4.1-nano",
+                                    messages=[{"role": "user", "content": prompt}],
+                                    max_tokens=600,
+                                    timeout=30
+                                )
+                                
+                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                st.markdown("""
+                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                </h3>
+                                """, unsafe_allow_html=True)
+                                st.write(response.choices[0].message.content)
+                                st.markdown('</div>', unsafe_allow_html=True)
+                                
+                            except Exception as e:
+                                st.error(f"❌ AI Analysis Error: {str(e)}")      
 
 elif platform == "Movie & TV Trends":
     # Hero-style header
