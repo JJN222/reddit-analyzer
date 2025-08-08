@@ -2746,6 +2746,178 @@ def get_relevant_channels_for_creator(creator_name, api_key):
 
 # Now replace your entire YouTube Intelligence platform section with this:
 
+# First, add this function with your other YouTube functions (before the platform section):
+
+def get_video_views(video_id, api_key):
+    """Get view count for a specific video"""
+    if not api_key or not video_id or video_id.startswith('sample'):
+        return "N/A"
+    
+    try:
+        url = "https://www.googleapis.com/youtube/v3/videos"
+        params = {
+            'part': 'statistics',
+            'id': video_id,
+            'key': api_key
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('items') and len(data['items']) > 0:
+                stats = data['items'][0].get('statistics', {})
+                view_count = stats.get('viewCount')
+                if view_count:
+                    # Format view count nicely (e.g., 1,234,567 -> 1.2M)
+                    try:
+                        views = int(view_count)
+                        if views >= 1000000:
+                            return f"{views/1000000:.1f}M views"
+                        elif views >= 1000:
+                            return f"{views/1000:.0f}K views"
+                        else:
+                            return f"{views:,} views"
+                    except:
+                        return f"{view_count} views"
+        return "N/A"
+    except Exception as e:
+        print(f"Error fetching views for {video_id}: {e}")
+        return "N/A"
+    """Use AI to find 5 most relevant YouTube channels for a creator"""
+    if not api_key:
+        return None
+    
+    prompt = f"""You are a YouTube content strategist. Find 5 YouTube channels that are most similar to "{creator_name}" in terms of:
+    - Content style and format
+    - Target audience
+    - Topic/niche overlap
+    - Production quality level
+    
+    Focus on channels that would have similar audiences and content approaches.
+    
+    Return ONLY a Python list of 5 channel names like this:
+    ["Channel Name 1", "Channel Name 2", "Channel Name 3", "Channel Name 4", "Channel Name 5"]
+    
+    Make sure channel names are exact and searchable on YouTube. No extra text, just the list."""
+    
+    try:
+        import openai
+        openai.api_key = api_key
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            temperature=0.3,
+            timeout=30
+        )
+        
+        result = response.choices[0].message.content.strip()
+        
+        # Parse the list from the AI response
+        import ast
+        try:
+            channels = ast.literal_eval(result)
+            if isinstance(channels, list) and len(channels) <= 5:
+                return [channel.strip() for channel in channels if channel.strip()]
+        except:
+            # Fallback parsing if AI doesn't return perfect list format
+            import re
+            channels = re.findall(r'"([^"]*)"', result)
+            return channels[:5] if channels else None
+            
+    except Exception as e:
+        print(f"Error getting relevant channels: {e}")
+        return None
+
+def format_youtube_date(date_string):
+    """Convert YouTube API date to MM/DD/YY format"""
+    if not date_string or date_string in ['Unknown', 'N/A'] or date_string.startswith('sample'):
+        return date_string
+    
+    try:
+        from datetime import datetime
+        # Handle both formats: 2025-08-08T14:00:36Z and other ISO formats
+        if 'T' in date_string:
+            # Remove timezone info and parse
+            clean_date = date_string.replace('Z', '').split('T')[0]
+            dt = datetime.strptime(clean_date, '%Y-%m-%d')
+        else:
+            dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        
+        return dt.strftime('%m/%d/%y')
+    except Exception as e:
+        print(f"Error formatting date {date_string}: {e}")
+        return date_string
+    """Search YouTube for recent videos from a specific channel"""
+    if not api_key:
+        # Return sample channel results
+        sample_results = [
+            {"title": f"Latest Video from {channel_name}", "views": "156K views", "published": "2 days ago", "description": f"Recent content from {channel_name}...", "video_id": f"sample_{channel_name}_1"},
+            {"title": f"{channel_name}'s Hot Take on Current Events", "views": "89K views", "published": "1 day ago", "description": f"Commentary and analysis from {channel_name}...", "video_id": f"sample_{channel_name}_2"},
+            {"title": f"Breaking: {channel_name} Responds", "views": "234K views", "published": "3 hours ago", "description": f"Response video from {channel_name}...", "video_id": f"sample_{channel_name}_3"},
+        ]
+        return sample_results
+    
+    try:
+        # First, get the channel ID
+        search_url = "https://www.googleapis.com/youtube/v3/search"
+        search_params = {
+            'part': 'snippet',
+            'q': channel_name,
+            'type': 'channel',
+            'maxResults': 1,
+            'key': api_key
+        }
+        
+        search_response = requests.get(search_url, params=search_params, timeout=15)
+        
+        if search_response.status_code == 200:
+            search_data = search_response.json()
+            if search_data.get('items'):
+                channel_id = search_data['items'][0]['id']['channelId']
+                
+                # Now get recent videos from this channel
+                videos_url = "https://www.googleapis.com/youtube/v3/search"
+                videos_params = {
+                    'part': 'snippet',
+                    'channelId': channel_id,
+                    'type': 'video',
+                    'order': 'date',
+                    'maxResults': max_results,
+                    'key': api_key,
+                    'publishedAfter': (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+                }
+                
+                videos_response = requests.get(videos_url, params=videos_params, timeout=15)
+                
+                if videos_response.status_code == 200:
+                    videos_data = videos_response.json()
+                    channel_videos = []
+                    
+                    for item in videos_data.get('items', []):
+                        snippet = item.get('snippet', {})
+                        video_data = {
+                            'title': snippet.get('title', 'No title'),
+                            'published': snippet.get('publishedAt', 'Unknown'),
+                            'video_id': item.get('id', {}).get('videoId', ''),
+                            'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                            'channel': snippet.get('channelTitle', channel_name),
+                            'views': 'N/A'  # Would need additional API call to get view count
+                        }
+                        channel_videos.append(video_data)
+                    
+                    return channel_videos
+        
+        # Fallback to sample data if API fails
+        return search_youtube_by_channel(channel_name)
+        
+    except Exception as e:
+        return search_youtube_by_channel(channel_name)  # Return sample data on error
+
+# Now replace your entire YouTube Intelligence platform section with this:
+
 if platform == "YouTube Intelligence":
     # Hero-style header
     st.markdown("""
@@ -2887,24 +3059,18 @@ if platform == "YouTube Intelligence":
                                             
                                             # Format published date to MM/DD/YY
                                             published_raw = snippet.get('publishedAt', '')
-                                            try:
-                                                if published_raw:
-                                                    from datetime import datetime
-                                                    dt = datetime.fromisoformat(published_raw.replace('Z', '+00:00'))
-                                                    formatted_date = dt.strftime('%m/%d/%y')
-                                                else:
-                                                    formatted_date = 'Unknown'
-                                            except:
-                                                formatted_date = 'Unknown'
+                                            formatted_date = format_youtube_date(published_raw)
+                                            
+                                            video_id = item.get('id', {}).get('videoId', '')
                                             
                                             video_data_item = {
                                                 'title': snippet.get('title', 'No title'),
                                                 'channel': snippet.get('channelTitle', 'Unknown Channel'),
                                                 'published': formatted_date,
-                                                'video_id': item.get('id', {}).get('videoId', ''),
+                                                'video_id': video_id,
                                                 'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
                                                 'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                                                'views': get_video_views(item.get('id', {}).get('videoId', ''), youtube_api_key)
+                                                'views': get_video_views(video_id, youtube_api_key)
                                             }
                                             search_results.append(video_data_item)
                         except Exception as e:
@@ -2940,14 +3106,10 @@ if platform == "YouTube Intelligence":
                         if channel_results:
                             # Format dates for channel results too
                             for result in channel_results:
-                                published_raw = result.get('published', '')
-                                try:
-                                    if published_raw and not published_raw.startswith(('sample', 'Unknown')):
-                                        from datetime import datetime
-                                        dt = datetime.fromisoformat(published_raw.replace('Z', '+00:00'))
-                                        result['published'] = dt.strftime('%m/%d/%y')
-                                except:
-                                    pass  # Keep original if formatting fails
+                                result['published'] = format_youtube_date(result.get('published', ''))
+                                # Also try to get views for channel results
+                                if result.get('video_id') and not result.get('video_id', '').startswith('sample'):
+                                    result['views'] = get_video_views(result['video_id'], youtube_api_key)
                             search_results.extend(channel_results)
             
             # Store and display results
@@ -3178,16 +3340,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
                         expanded=st.session_state[expanded_key]
                     ):
                         # Format trending video dates to MM/DD/YY
-                        published_raw = video.get('published', '')
-                        try:
-                            if published_raw and not published_raw.startswith(('sample', 'Unknown')):
-                                from datetime import datetime
-                                dt = datetime.fromisoformat(published_raw.replace('Z', '+00:00'))
-                                formatted_date = dt.strftime('%m/%d/%y')
-                            else:
-                                formatted_date = video.get('published', 'Unknown')
-                        except:
-                            formatted_date = video.get('published', 'Unknown')
+                        formatted_date = format_youtube_date(video.get('published', ''))
                         
                         # Add clean metric display for trending videos
                         st.markdown(f"""
@@ -3259,7 +3412,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 
                         if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                                                                                    
+                                                                                                                
 elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret, _ = get_api_keys()
