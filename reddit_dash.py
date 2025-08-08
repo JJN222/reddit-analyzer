@@ -3542,7 +3542,7 @@ elif platform == "Reddit Analysis":
   for i, (subreddit, emoji) in enumerate(popular_subreddits):
     col = cols[i % 4]
     with col:
-      if st.button(f"{emoji} r/{subreddit}", key=f"quick_sub_{subreddit}_{i}"):
+      if st.button(f"{emoji} r/{subreddit}", key=f"quick_sub_{subreddit}_{i}", use_container_width=True):
         # Update the subreddit input and trigger search
         st.session_state.should_search = True
         st.session_state.search_params = {
@@ -3552,6 +3552,20 @@ elif platform == "Reddit Analysis":
           'limit': 5
         }
         st.rerun()
+  
+  # Add custom CSS to make button text smaller
+  st.markdown("""
+  <style>
+  /* Make subreddit button text smaller */
+  div[data-testid="column"] button p {
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  </style>
+  """, unsafe_allow_html=True)
   
   # Two-column layout for intro/tips
   st.markdown("---")
@@ -3583,7 +3597,7 @@ elif platform == "Reddit Analysis":
     </div>
   </div>
   """, unsafe_allow_html=True)
-        
+          
 
 elif platform == "Google Trends":
     # Hero-style header
