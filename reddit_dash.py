@@ -3122,8 +3122,11 @@ if platform == "YouTube Intelligence":
                         unique_results.append(result)
                         seen_ids.add(result['video_id'])
                 
+                # Sort by view count (highest first)
+                unique_results.sort(key=lambda x: extract_view_count_for_sorting(x.get('views', 'N/A')), reverse=True)
+                
                 st.session_state.youtube_search_results = unique_results
-                st.success(f"✅ Found {len(unique_results)} unique videos")
+                st.success(f"✅ Found {len(unique_results)} unique videos (sorted by views)")
             else:
                 st.error("❌ No results found. Try different search criteria.")
 
@@ -3412,7 +3415,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 
                         if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                                                                                                                
+                            
 elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret, _ = get_api_keys()
