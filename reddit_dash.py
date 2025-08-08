@@ -83,7 +83,7 @@ body {
 }
 
 .main .block-container {
-  padding-top: 2rem;
+  padding-top: 1rem;  /* CHANGED: Reduced from 2rem */
   max-width: 1200px;
   padding-left: 4rem;
   padding-right: 4rem;
@@ -91,13 +91,14 @@ body {
 
 /* Hero section */
 .hero-section {
-  min-height: 90vh;
+  min-height: 70vh;  /* CHANGED: Reduced from 90vh */
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  padding: 4rem 0;
+  padding: 2rem 0;  /* CHANGED: Reduced from 4rem 0 */
   background: var(--background);
+  margin-bottom: 1rem;  /* ADDED: Reduce space after hero */
 }
 
 .hero-headline {
@@ -108,7 +109,7 @@ body {
   color: var(--primary-text);
   line-height: 0.9;
   letter-spacing: -4px;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;  /* CHANGED: Reduced from 2rem */
 }
 
 .hero-headline .accent {
@@ -121,8 +122,24 @@ body {
   font-weight: 300;
   color: var(--primary-text);
   line-height: 1.4;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;  /* CHANGED: Reduced from 3rem */
   max-width: 600px;
+}
+
+/* Content Intelligence Platform section */
+.content-intelligence-section {
+  margin-top: 1rem;  /* ADDED: Control spacing above this section */
+  margin-bottom: 2rem;  /* ADDED: Control spacing below */
+}
+
+.content-intelligence-header {
+  font-family: 'Inter', sans-serif;
+  font-size: 48px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--primary-text);
+  letter-spacing: -1px;
+  margin-bottom: 1rem;  /* ADDED: Reduce spacing after header */
 }
 
 /* CTA Buttons */
@@ -329,8 +346,18 @@ p, .stMarkdown {
   max-width: 1200px;
   margin: 0 auto;
 }
+
+/* Make subreddit button text smaller */
+div[data-testid="column"] button p {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
 </style>
 """, unsafe_allow_html=True)
+
 
 # ============ SIDEBAR CONFIGURATION ============
 
@@ -3597,7 +3624,7 @@ elif platform == "Reddit Analysis":
     </div>
   </div>
   """, unsafe_allow_html=True)
-          
+
 
 elif platform == "Google Trends":
     # Hero-style header
