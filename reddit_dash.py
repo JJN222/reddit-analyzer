@@ -3393,8 +3393,35 @@ elif platform == "Reddit Analysis":
   
   # Handle dynamic subreddit selection
   if 'selected_subreddits' in st.session_state:
-      default_subreddits = st.session_state.selected_subreddits
+      # Filter AI suggestions to only include ones that exist in our options
+      suggested_subreddits = st.session_state.selected_subreddits
+      
+      # Base subreddit options
+      subreddit_options = [
+        "TrueCrime", "AskReddit", "politics", "Conservative", "news", "worldnews", 
+        "technology", "movies", "television", "music", "gaming", "sports",
+        "funny", "todayilearned", "science", "relationships", "food", "fitness",
+        "travel", "books", "photography", "MakeupAddiction", "beauty", "serialkillers",
+        "UnresolvedMysteries", "nosleep", "LetsNotMeet", "creepy", "entertainment"
+      ]
+      
+      # Add any AI-suggested subreddits that aren't already in the list
+      for subreddit in suggested_subreddits:
+        if subreddit not in subreddit_options:
+          subreddit_options.append(subreddit)
+      
+      # Filter suggested subreddits to only valid ones
+      valid_defaults = [sub for sub in suggested_subreddits if sub in subreddit_options]
+      default_subreddits = valid_defaults if valid_defaults else ["TrueCrime"]
   else:
+      # Base subreddit options
+      subreddit_options = [
+        "TrueCrime", "AskReddit", "politics", "Conservative", "news", "worldnews", 
+        "technology", "movies", "television", "music", "gaming", "sports",
+        "funny", "todayilearned", "science", "relationships", "food", "fitness",
+        "travel", "books", "photography", "MakeupAddiction", "beauty", "serialkillers",
+        "UnresolvedMysteries", "nosleep", "LetsNotMeet", "creepy", "entertainment"
+      ]
       default_subreddits = ["TrueCrime"]
 
   # Clean main search section
@@ -3402,7 +3429,7 @@ elif platform == "Reddit Analysis":
   
   # Search inputs in a clean layout
   col1, col2 = st.columns([2, 1])
-  
+        
   with col1:
     # Keywords search input
     search_keywords = st.text_input(
@@ -3412,15 +3439,7 @@ elif platform == "Reddit Analysis":
       help="Leave empty to browse subreddits without keyword filtering"
     )
     
-    # Multi-select subreddit input
-    subreddit_options = [
-      "TrueCrime", "AskReddit", "politics", "Conservative", "news", "worldnews", 
-      "technology", "movies", "television", "music", "gaming", "sports",
-      "funny", "todayilearned", "science", "relationships", "food", "fitness",
-      "travel", "books", "photography", "MakeupAddiction", "beauty", "serialkillers",
-      "UnresolvedMysteries", "nosleep", "LetsNotMeet", "creepy", "entertainment"
-    ]
-    
+    # Multi-select subreddit input (using the options defined above)
     selected_subreddits = st.multiselect(
       "SUBREDDIT NAMES (optional)",
       options=subreddit_options,
