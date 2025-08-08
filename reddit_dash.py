@@ -2070,7 +2070,7 @@ if platform == "Home":
     """, unsafe_allow_html=True)
     
     # Platform cards
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
@@ -2118,18 +2118,6 @@ if platform == "Home":
         </div>
         """, unsafe_allow_html=True)
       
-    with col3:
-        # NEW: Google Trends card
-        st.markdown("""
-        <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; min-height: 250px;">
-          <h3 style="font-size: 24px; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem;">
-            Google Trends
-          </h3>
-          <p style="font-size: 18px; line-height: 1.6;">
-            Track what's trending on Google Search and create timely content around viral search terms.
-          </p>
-        </div>
-        """, unsafe_allow_html=True)
     
     # Features section
     st.markdown("""
