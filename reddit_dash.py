@@ -83,7 +83,7 @@ body {
 }
 
 .main .block-container {
-  padding-top: 1rem;  /* CHANGED: Reduced from 2rem */
+  padding-top: 0.5rem;  /* CHANGED: Further reduced for alignment */
   max-width: 1200px;
   padding-left: 4rem;
   padding-right: 4rem;
@@ -96,9 +96,10 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  padding: 2rem 0;  /* CHANGED: Reduced from 4rem 0 */
+  padding: 1rem 0;  /* CHANGED: Further reduced from 2rem 0 */
   background: var(--background);
   margin-bottom: 1rem;  /* ADDED: Reduce space after hero */
+  margin-top: 0;  /* ADDED: Align with sidebar top */
 }
 
 .hero-headline {
