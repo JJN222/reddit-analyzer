@@ -393,7 +393,7 @@ creator_name = st.sidebar.text_input(
   key="creator_name_input"
 )
 
-if st.sidebar.button("🔄 Update Creator", key="update_creator_btn", use_container_width=True):
+if st.sidebar.button("Update Creator", key="update_creator_btn", use_container_width=True):
     if creator_name:
         with st.spinner(f"Finding relevant subreddits for {creator_name}..."):
             relevant_subreddits = get_relevant_subreddits_for_creator(creator_name, api_key)
