@@ -3388,36 +3388,65 @@ elif platform == "Reddit Analysis":
     
     # Determine search strategy
     if keywords and subreddit:
-      # Search for keywords within a specific subreddit
+      # Search for keywords within a specific subreddit using a better approach
       st.info(f"🔍 Searching for '{keywords}' in r/{subreddit}...")
       
-      # Use Reddit's search API for subreddit-specific keyword search
-      try:
-        search_url = f"https://www.reddit.com/r/{subreddit}/search.json"
-        params_dict = {
-          'q': keywords,
-          'restrict_sr': 'true',
-          'sort': 'top' if category == 'top' else 'hot',
-          't': 'day',
-          'limit': limit,
-          'raw_json': 1
-        }
+      # First, get regular posts from the subreddit
+      with st.spinner(f"Getting posts from r/{subreddit}..."):
+        posts = get_reddit_posts(subreddit, category, limit * 3)  # Get more posts to filter
+      
+      if posts:
+        # Filter posts that contain the keywords in title or content
+        keywords_lower = keywords.lower()
+        matching_posts = []
         
-        time.sleep(2)
-        response = requests.get(search_url, headers=HEADERS, params=params_dict, timeout=15)
+        for post in posts:
+          post_data = post['data']
+          title = post_data.get('title', '').lower()
+          selftext = post_data.get('selftext', '').lower()
+          
+          # Check if keywords appear in title or content
+          if keywords_lower in title or keywords_lower in selftext:
+            matching_posts.append(post)
         
-        if response.status_code == 200:
-          data = response.json()
-          if 'data' in data and 'children' in data['data'] and data['data']['children']:
-            posts = data['data']['children']
-            st.success(f"✅ Found {len(posts)} posts matching '{keywords}' in r/{subreddit}")
-            display_posts(posts, subreddit, api_key, creator_name)
-          else:
-            st.warning(f"No posts found for '{keywords}' in r/{subreddit}. Try different keywords.")
+        if matching_posts:
+          # Limit to requested number
+          matching_posts = matching_posts[:limit]
+          st.success(f"✅ Found {len(matching_posts)} posts containing '{keywords}' in r/{subreddit}")
+          display_posts(matching_posts, subreddit, api_key, creator_name)
         else:
-          st.error("Search failed. Try browsing the subreddit without keywords.")
-      except Exception as e:
-        st.error(f"Search error: {str(e)}. Try browsing the subreddit without keywords.")
+          # If no matches, try Reddit's search as fallback
+          st.warning(f"No posts containing '{keywords}' found in recent {category} posts.")
+          st.info("Trying Reddit's search API as backup...")
+          
+          try:
+            search_url = f"https://www.reddit.com/r/{subreddit}/search.json"
+            params_dict = {
+              'q': keywords,
+              'restrict_sr': 'true',
+              'sort': 'relevance',
+              't': 'week',  # Expand time range
+              'limit': limit,
+              'raw_json': 1
+            }
+            
+            time.sleep(2)
+            response = requests.get(search_url, headers=HEADERS, params=params_dict, timeout=15)
+            
+            if response.status_code == 200:
+              data = response.json()
+              if 'data' in data and 'children' in data['data'] and data['data']['children']:
+                posts = data['data']['children']
+                st.success(f"✅ Found {len(posts)} posts via search API")
+                display_posts(posts, subreddit, api_key, creator_name)
+              else:
+                st.warning(f"No results found for '{keywords}' in r/{subreddit}. Try browsing without keywords or different terms.")
+            else:
+              st.warning(f"Search API unavailable. Try browsing r/{subreddit} without keywords.")
+          except Exception as e:
+            st.warning(f"Search unavailable. Try browsing r/{subreddit} without keywords.")
+      else:
+        st.error(f"Could not access r/{subreddit}. Try a different subreddit.")
     
     elif keywords and not subreddit:
       # Search keywords across all Reddit
@@ -3557,6 +3586,7 @@ elif platform == "Reddit Analysis":
   </div>
   """, unsafe_allow_html=True)
   
+    
 elif platform == "Google Trends":
     # Hero-style header
     st.markdown("""
