@@ -3287,13 +3287,14 @@ elif platform == "Movie & TV Trends":
 elif platform == "Reddit Analysis":
   # Hero-style header
   st.markdown("""
-  <div style="margin-bottom: 4rem;">
+  <div style="margin-bottom: 2rem;">
     <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
       Reddit Content <span style="color: #BCE5F7;">Analysis</span>
     </h1>
-    <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+    <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px; margin-bottom: 2rem;">
       Discover viral discussions, analyze community sentiment, and create content that resonates.
     </p>
+    <hr style="border: none; height: 1px; background-color: #e0e0e0; margin: 0;">
   </div>
   """, unsafe_allow_html=True)
   
@@ -3585,8 +3586,8 @@ elif platform == "Reddit Analysis":
     </div>
   </div>
   """, unsafe_allow_html=True)
-  
     
+
 elif platform == "Google Trends":
     # Hero-style header
     st.markdown("""
