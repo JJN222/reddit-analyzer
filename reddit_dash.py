@@ -385,6 +385,7 @@ st.sidebar.markdown("""
   Creator <span style="color: #BCE5F7;">Settings</span>
 </h2>
 """, unsafe_allow_html=True)
+
 creator_name = st.sidebar.text_input(
   "Creator/Show",
   value="Bailey Sarian",
@@ -392,7 +393,22 @@ creator_name = st.sidebar.text_input(
   key="creator_name_input"
 )
 
+if st.sidebar.button("🔄 Update Creator", key="update_creator_btn", use_container_width=True):
+    if creator_name:
+        with st.spinner(f"Finding relevant subreddits for {creator_name}..."):
+            relevant_subreddits = get_relevant_subreddits_for_creator(creator_name, api_key)
+            if relevant_subreddits:
+                st.session_state.creator_subreddits = relevant_subreddits
+                st.session_state.creator_updated = True
+                st.session_state.current_creator = creator_name  # Track which creator this is for
+                st.success(f"✅ Updated subreddits for {creator_name}")
+            else:
+                st.error("❌ Could not get subreddits. Check your API key.")
+    else:
+        st.warning("Please enter a creator name first")
+
 st.sidebar.markdown("---")
+
 
 # ============ API KEY MANAGEMENT ============
 
@@ -515,6 +531,79 @@ def get_reddit_posts(subreddit, category="hot", limit=5):
         continue
   
   return []
+
+def get_relevant_subreddits_for_creator(creator_name, api_key):
+    """Use AI to find 12 most relevant subreddits for a creator"""
+    if not api_key:
+        return None
+    
+    prompt = f"""Analyze the creator "{creator_name}" and suggest the 12 most relevant subreddits for their content.
+
+Focus on:
+1. Subreddits that match their content niche/topic
+2. Communities with good audience size (avoid tiny subreddits with <10k members)
+3. Active communities where their content would be relevant
+4. Mix of primary niche + related/crossover communities
+5. Use actual existing subreddit names (check they exist)
+
+For example, if analyzing "Bailey Sarian":
+- Primary niche: TrueCrime, serialkillers, UnresolvedMysteries
+- Beauty crossover: MakeupAddiction, beauty, SkinCareAddiction  
+- Storytelling: nosleep, LetsNotMeet, creepy
+- General: AskReddit, todayilearned, videos
+
+Return ONLY a Python list of subreddit names (without r/ prefix), exactly like this format:
+["TrueCrime", "serialkillers", "UnresolvedMysteries", "MakeupAddiction", "beauty", "nosleep", "LetsNotMeet", "creepy", "AskReddit", "todayilearned", "videos", "entertainment"]
+
+Creator: {creator_name}"""
+
+    try:
+        import openai
+        openai.api_key = api_key
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+            timeout=30
+        )
+        
+        # Parse the AI response to extract the list
+        response_text = response.choices[0].message.content.strip()
+        
+        # Try to extract the list from the response
+        import ast
+        try:
+            # Look for a list in the response
+            start = response_text.find('[')
+            end = response_text.find(']') + 1
+            if start != -1 and end != 0:
+                list_text = response_text[start:end]
+                subreddits = ast.literal_eval(list_text)
+                if isinstance(subreddits, list) and len(subreddits) <= 12:
+                    return subreddits[:12]  # Ensure max 12
+        except:
+            pass
+            
+        # Fallback: extract subreddit names manually using regex
+        import re
+        subreddits = re.findall(r'"([^"]+)"', response_text)
+        if subreddits:
+            return subreddits[:12]
+        
+        # Final fallback: try to extract words that look like subreddit names
+        words = response_text.replace('[', '').replace(']', '').replace('"', '').split(',')
+        clean_subreddits = []
+        for word in words:
+            clean_word = word.strip()
+            if clean_word and len(clean_word) > 2 and len(clean_word) < 25:
+                clean_subreddits.append(clean_word)
+        
+        return clean_subreddits[:12] if clean_subreddits else None
+            
+    except Exception as e:
+        st.error(f"Error getting relevant subreddits: {str(e)}")
+        return None
 
 def get_top_comments(subreddit, post_id, limit=3):
   """Get top comments for a specific post"""
@@ -3539,35 +3628,94 @@ elif platform == "Reddit Analysis":
         use_container_width=True
       )
 
-  # Popular Subreddits - Quick selection
+
+  # Two-column layout for intro/tips (keep existing)
   st.markdown("---")
-  st.markdown("### Popular Subreddits")
-  st.markdown("*Click any subreddit to quickly browse it*")
-  
-  popular_subreddits = [
-    ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("politics", "🗳️"), ("Conservative", "🇺🇸"),
-    ("news", "📰"), ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"),
-    ("television", "📺"), ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"),
-    ("funny", "😂"), ("todayilearned", "🧠"), ("science", "🔬"), ("relationships", "💕"),
-    ("food", "🍕"), ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"),
-    ("photography", "📸"), ("dataisbeautiful", "📊"), ("explainlikeimfive", "🧒"), ("lifehacks", "💡")
-  ]
-  
-  # Display in 4 columns
-  cols = st.columns(4)
-  for i, (subreddit, emoji) in enumerate(popular_subreddits):
-    col = cols[i % 4]
-    with col:
-      if st.button(f"{emoji} r/{subreddit}", key=f"quick_sub_{subreddit}_{i}", use_container_width=True):
-        # Update the subreddit input and trigger search
-        st.session_state.should_search = True
-        st.session_state.search_params = {
-          'keywords': '',
-          'subreddit': subreddit,
-          'category': 'hot',
-          'limit': 5
-        }
-        st.rerun()
+  st.markdown("""
+  <div class="two-column" style="margin-bottom: 3rem;">
+    <div>
+      <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+        Search <span style="color: #BCE5F7;">Tips</span>
+      </h2>
+      <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+        Get the most out of Reddit analysis with these search strategies.
+      </p>
+    </div>
+    <div style="padding-left: 3rem;">
+      <div class="numbered-list">
+        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+          <span style="font-size: 18px;">Use keywords + subreddit for targeted search</span>
+        </div>
+        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+          <span style="font-size: 18px;">Browse subreddits to find trending topics</span>
+        </div>
+        <div style="display: flex; align-items: center;">
+          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+          <span style="font-size: 18px;">Search all Reddit for viral content</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  """, unsafe_allow_html=True)
+
+  # Conditional subreddit section
+  st.markdown("---")
+
+  # Check if creator has been updated
+  if hasattr(st.session_state, 'creator_updated') and st.session_state.creator_updated and hasattr(st.session_state, 'creator_subreddits'):
+      # Show relevant subreddits
+      st.markdown(f"### Relevant Subreddits for {creator_name}")
+      st.markdown(f"*AI-curated communities for {creator_name}'s content style*")
+      
+      relevant_subreddits = st.session_state.creator_subreddits
+      
+      # Display in 4 columns
+      cols = st.columns(4)
+      for i, subreddit in enumerate(relevant_subreddits):
+          col = cols[i % 4]
+          with col:
+              if st.button(f"🎯 r/{subreddit}", key=f"relevant_sub_{subreddit}_{i}"):
+                  # Update the subreddit input and trigger search
+                  st.session_state.should_search = True
+                  st.session_state.search_params = {
+                      'keywords': '',
+                      'subreddit': subreddit,
+                      'category': 'hot',
+                      'limit': 5
+                  }
+                  st.rerun()
+
+  else:
+      # Show default popular subreddits
+      st.markdown("### Popular Subreddits")
+      st.markdown("*Click any subreddit to quickly browse it*")
+      
+      popular_subreddits = [
+          ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("politics", "🗳️"), ("Conservative", "🇺🇸"),
+          ("news", "📰"), ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"),
+          ("television", "📺"), ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"),
+          ("funny", "😂"), ("todayilearned", "🧠"), ("science", "🔬"), ("relationships", "💕"),
+          ("food", "🍕"), ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"),
+          ("photography", "📸"), ("dataisbeautiful", "📊"), ("explainlikeimfive", "🧒"), ("lifehacks", "💡")
+      ]
+      
+      # Display in 4 columns
+      cols = st.columns(4)
+      for i, (subreddit, emoji) in enumerate(popular_subreddits):
+          col = cols[i % 4]
+          with col:
+              if st.button(f"{emoji} r/{subreddit}", key=f"pop_sub_{subreddit}_{i}"):
+                  # Update the subreddit input and trigger search
+                  st.session_state.should_search = True
+                  st.session_state.search_params = {
+                      'keywords': '',
+                      'subreddit': subreddit,
+                      'category': 'hot',
+                      'limit': 5
+                  }
+                  st.rerun()
   
   # Add custom CSS to make button text smaller
   st.markdown("""
