@@ -3299,8 +3299,7 @@ elif platform == "Reddit Analysis":
   """, unsafe_allow_html=True)
   
   # Clean main search section
-  st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
-  st.markdown('<h3 style="font-size: 18px; font-weight: 700; text-transform: uppercase; margin-bottom: 1.5rem; color: #221F1F;">SEARCH REDDIT</h3>', unsafe_allow_html=True)
+  st.markdown('<h3 style="font-size: 18px; font-weight: 700; text-transform: uppercase; margin-bottom: 1.5rem; color: #221F1F; margin-top: 2rem;">SEARCH REDDIT</h3>', unsafe_allow_html=True)
   
   # Search inputs in a clean layout
   col1, col2 = st.columns([2, 1])
@@ -3343,18 +3342,6 @@ elif platform == "Reddit Analysis":
       2, 15, 5, 
       key="post_limit_slider"
     )
-  
-  st.markdown('</div>', unsafe_allow_html=True)
-  
-  # Search logic explanation
-  if search_keywords and subreddit_input:
-    search_description = f"Search for '{search_keywords}' in r/{subreddit_input}"
-  elif search_keywords and not subreddit_input:
-    search_description = f"Search for '{search_keywords}' across all of Reddit"
-  elif not search_keywords and subreddit_input:
-    search_description = f"Browse {post_category} posts from r/{subreddit_input}"
-  else:
-    search_description = "Enter keywords or subreddit name to search"
   
   st.markdown(f"""
   <div style="text-align: center; margin-bottom: 2rem;">
@@ -3586,7 +3573,7 @@ elif platform == "Reddit Analysis":
     </div>
   </div>
   """, unsafe_allow_html=True)
-    
+      
 
 elif platform == "Google Trends":
     # Hero-style header
