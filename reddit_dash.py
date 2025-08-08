@@ -1002,6 +1002,81 @@ def get_youtube_trending(api_key=None, region='US', max_results=15):
   except Exception as e:
     st.warning(f"⚠️ YouTube API temporarily unavailable: {str(e)[:50]}... Using sample data.")
     return get_youtube_trending()
+  
+def get_relevant_channels_for_creator(creator_name, api_key):
+    """Use AI to find 5 most relevant YouTube channels for a creator"""
+    if not api_key:
+        return None
+    
+    prompt = f"""Analyze the creator "{creator_name}" and suggest 5 YouTube channels that are most relevant/similar to their content.
+
+Focus on:
+1. Channels that create similar content types
+2. Channels in the same niche or related niches
+3. Channels with good audience overlap
+4. Popular channels that the creator's audience would also watch
+5. Use actual existing YouTube channel names
+
+For example, if analyzing "Bailey Sarian":
+- Similar true crime: Kendall Rae, Eleanor Neale, Stephanie Harlowe
+- Beauty crossover: James Charles, Jeffree Star
+- Storytelling: MrBallen, That Chapter
+
+Return ONLY a Python list of YouTube channel names, exactly like this format:
+["Kendall Rae", "Eleanor Neale", "Stephanie Harlowe", "MrBallen", "That Chapter"]
+
+Make sure these are real, active YouTube channels. Do not include the original creator in the list.
+
+Creator: {creator_name}"""
+
+    try:
+        import openai
+        openai.api_key = api_key
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            timeout=30
+        )
+        
+        # Parse the AI response to extract the list
+        response_text = response.choices[0].message.content.strip()
+        
+        # Try to extract the list from the response
+        import ast
+        try:
+            # Look for a list in the response
+            start = response_text.find('[')
+            end = response_text.find(']') + 1
+            if start != -1 and end != 0:
+                list_text = response_text[start:end]
+                channels = ast.literal_eval(list_text)
+                if isinstance(channels, list) and len(channels) <= 5:
+                    return channels[:5]  # Ensure max 5
+        except:
+            pass
+            
+        # Fallback: extract channel names manually using regex
+        import re
+        channels = re.findall(r'"([^"]+)"', response_text)
+        if channels:
+            return channels[:5]
+        
+        # Final fallback: try to extract words that look like channel names
+        words = response_text.replace('[', '').replace(']', '').replace('"', '').split(',')
+        clean_channels = []
+        for word in words:
+            clean_word = word.strip()
+            if clean_word and len(clean_word) > 2 and len(clean_word) < 30:
+                clean_channels.append(clean_word)
+        
+        return clean_channels[:5] if clean_channels else None
+            
+    except Exception as e:
+        st.error(f"Error getting relevant channels: {str(e)}")
+        return None
+
 
 def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week", search_type="video"):
   """Search YouTube for videos by topic/keywords with timeframe, or search by channel"""
@@ -2246,270 +2321,285 @@ if platform == "Home":
     </div>
     """, unsafe_allow_html=True)
 
-if platform == "YouTube Intelligence":
-  # Hero-style header
-  st.markdown("""
-  <div style="margin-bottom: 4rem;">
-    <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
-      YouTube <span style="color: #BCE5F7;">Center</span>
-    </h1>
-    <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
-      Discover trending content, analyze audience sentiment, and generate data-driven content strategies.
-    </p>
-  </div>
-  """, unsafe_allow_html=True)
-  
-  # Clean tabs with new styling
-  tab1, tab2 = st.tabs(["VIDEO SEARCH", "TRENDING ANALYSIS"])
-  
-  with tab1:
+# First, add this function with your other YouTube functions (before the platform section):
+
+def get_relevant_channels_for_creator(creator_name, api_key):
+    """Use AI to find 5 most relevant YouTube channels for a creator"""
+    if not api_key:
+        return None
     
-    # Clean search inputs with better spacing
-    st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
+    prompt = f"""You are a YouTube content strategist. Find 5 YouTube channels that are most similar to "{creator_name}" in terms of:
+    - Content style and format
+    - Target audience
+    - Topic/niche overlap
+    - Production quality level
     
-    col1, col2 = st.columns([3, 1])
-    with col1:
-      search_keywords = st.text_input(
-        "KEYWORDS", 
-        placeholder="e.g., 'true crime stories', 'makeup tutorial'", 
-        key="keyword_input",
-        label_visibility="visible"
-      )
-    with col2:
-      search_timeframe = st.selectbox(
-        "TIMEFRAME", 
-        ["Last 2 Days", "Last Week", "Last Month", "Anytime"], 
-        key="youtube_timeframe"
-      )
+    Focus on channels that would have similar audiences and content approaches.
     
-    search_channel = st.text_input(
-      "CHANNEL NAME", 
-      placeholder="e.g., 'Bailey Sarian', 'MrBeast'", 
-      key="channel_input"
-    )
+    Return ONLY a Python list of 5 channel names like this:
+    ["Channel Name 1", "Channel Name 2", "Channel Name 3", "Channel Name 4", "Channel Name 5"]
     
-    video_url = st.text_input(
-      "VIDEO URL", 
-      placeholder="e.g., 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'", 
-      key="video_url_input"
-    )
+    Make sure channel names are exact and searchable on YouTube. No extra text, just the list."""
     
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Search button - styled as primary CTA
-    if st.button("SEARCH YOUTUBE", key="search_youtube", type="primary", use_container_width=True):
-      # ... existing search logic ...
-      search_results = [] # Initialize search_results here
-      
-      # Extract video ID from URL if provided
-      if video_url:
-        video_id = None
-        if "youtube.com/watch?v=" in video_url:
-          video_id = video_url.split("v=")[1].split("&")[0]
-        elif "youtu.be/" in video_url:
-          video_id = video_url.split("youtu.be/")[1].split("?")[0]
-        else:
-          # Assume it's just the video ID
-          video_id = video_url.strip()
+    try:
+        import openai
+        openai.api_key = api_key
         
-        if video_id:
-          # Fetch specific video details
-          st.info(f"🎥 Fetching video: {video_id}")
-          video_details = get_video_by_id(video_id, youtube_api_key)
-          if video_details:
-            search_results.append(video_details)
-          else:
-            # Fallback if API fails
-            search_results.append({
-              "title": f"Video: {video_id}",
-              "channel": "Unable to fetch details",
-              "views": "N/A",
-              "published": "N/A",
-              "video_id": video_id,
-              "description": "Could not retrieve video details. Check your API key.",
-              "thumbnail": f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
-            })
-      
-      # Handle combined keyword + channel search
-      if search_keywords and search_channel:
-        # When both are specified, search within the channel for the keywords
-        timeframe_map = {
-          "Last 2 Days": "2days",
-          "Last Week": "week", 
-          "Last Month": "month",
-          "Anytime": "all"
-        }
-        timeframe_param = timeframe_map.get(search_timeframe, "week")
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            temperature=0.3,
+            timeout=30
+        )
         
-        with st.spinner(f"🔍 Searching for '{search_keywords}' in channel '{search_channel}'..."):
-          # First, find the channel
-          search_url = "https://www.googleapis.com/youtube/v3/search"
-          channel_params = {
+        result = response.choices[0].message.content.strip()
+        
+        # Parse the list from the AI response
+        import ast
+        try:
+            channels = ast.literal_eval(result)
+            if isinstance(channels, list) and len(channels) <= 5:
+                return [channel.strip() for channel in channels if channel.strip()]
+        except:
+            # Fallback parsing if AI doesn't return perfect list format
+            import re
+            channels = re.findall(r'"([^"]*)"', result)
+            return channels[:5] if channels else None
+            
+    except Exception as e:
+        print(f"Error getting relevant channels: {e}")
+        return None
+
+def search_youtube_by_channel(channel_name, api_key=None, max_results=5):
+    """Search YouTube for recent videos from a specific channel"""
+    if not api_key:
+        # Return sample channel results
+        sample_results = [
+            {"title": f"Latest Video from {channel_name}", "views": "156K views", "published": "2 days ago", "description": f"Recent content from {channel_name}...", "video_id": f"sample_{channel_name}_1"},
+            {"title": f"{channel_name}'s Hot Take on Current Events", "views": "89K views", "published": "1 day ago", "description": f"Commentary and analysis from {channel_name}...", "video_id": f"sample_{channel_name}_2"},
+            {"title": f"Breaking: {channel_name} Responds", "views": "234K views", "published": "3 hours ago", "description": f"Response video from {channel_name}...", "video_id": f"sample_{channel_name}_3"},
+        ]
+        return sample_results
+    
+    try:
+        # First, get the channel ID
+        search_url = "https://www.googleapis.com/youtube/v3/search"
+        search_params = {
             'part': 'snippet',
-            'q': search_channel,
+            'q': channel_name,
             'type': 'channel',
             'maxResults': 1,
-            'key': youtube_api_key
-          }
-          
-          try:
-            channel_response = requests.get(search_url, params=channel_params, timeout=15)
-            
-            if channel_response.status_code == 200:
-              channel_data = channel_response.json()
-              if channel_data.get('items'):
-                channel_id = channel_data['items'][0]['id']['channelId']
+            'key': api_key
+        }
+        
+        search_response = requests.get(search_url, params=search_params, timeout=15)
+        
+        if search_response.status_code == 200:
+            search_data = search_response.json()
+            if search_data.get('items'):
+                channel_id = search_data['items'][0]['id']['channelId']
                 
-                # Now search for keywords within this channel
-                video_params = {
-                  'part': 'snippet',
-                  'channelId': channel_id,
-                  'q': search_keywords, # Add keyword search within the channel
-                  'type': 'video',
-                  'order': 'relevance',
-                  'maxResults': 10,
-                  'key': youtube_api_key
+                # Now get recent videos from this channel
+                videos_url = "https://www.googleapis.com/youtube/v3/search"
+                videos_params = {
+                    'part': 'snippet',
+                    'channelId': channel_id,
+                    'type': 'video',
+                    'order': 'date',
+                    'maxResults': max_results,
+                    'key': api_key,
+                    'publishedAfter': (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
                 }
                 
-                # Add timeframe filter
-                if timeframe_param == "2days":
-                  published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
-                elif timeframe_param == "week":
-                  published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
-                elif timeframe_param == "month":
-                  published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
-                elif timeframe_param != "all":
-                  published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+                videos_response = requests.get(videos_url, params=videos_params, timeout=15)
                 
-                if timeframe_param != "all":
-                  video_params['publishedAfter'] = published_after
-                
-                video_response = requests.get(search_url, params=video_params, timeout=15)
-                
-                if video_response.status_code == 200:
-                  video_data = video_response.json()
-                  
-                  for item in video_data.get('items', []):
-                    snippet = item.get('snippet', {})
+                if videos_response.status_code == 200:
+                    videos_data = videos_response.json()
+                    channel_videos = []
                     
-                    video_data_item = {
-                      'title': snippet.get('title', 'No title'),
-                      'channel': snippet.get('channelTitle', 'Unknown Channel'),
-                      'published': snippet.get('publishedAt', 'Unknown'),
-                      'video_id': item.get('id', {}).get('videoId', ''),
-                      'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
-                      'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
-                    }
-                    search_results.append(video_data_item)
-                  
-                  st.success(f"✅ Found videos matching '{search_keywords}' in '{search_channel}' channel")
-          except Exception as e:
-            st.warning(f"⚠️ Combined search failed: {str(e)[:50]}...")
-      
-      # Search by keywords only (when no channel specified)
-      elif search_keywords and not search_channel:
-        # Convert timeframe to API parameter
-        timeframe_map = {
-          "Last 2 Days": "2days",
-          "Last Week": "week", 
-          "Last Month": "month",
-          "Anytime": "any"
-        }
-        timeframe_param = timeframe_map.get(search_timeframe, "week")
+                    for item in videos_data.get('items', []):
+                        snippet = item.get('snippet', {})
+                        video_data = {
+                            'title': snippet.get('title', 'No title'),
+                            'published': snippet.get('publishedAt', 'Unknown'),
+                            'video_id': item.get('id', {}).get('videoId', ''),
+                            'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                            'channel': snippet.get('channelTitle', channel_name),
+                            'views': 'N/A'  # Would need additional API call to get view count
+                        }
+                        channel_videos.append(video_data)
+                    
+                    return channel_videos
         
-        with st.spinner(f"🔍 Searching for '{search_keywords}'..."):
-          keyword_results = search_youtube_videos(search_keywords, youtube_api_key, timeframe=timeframe_param, search_type="video")
-          if keyword_results:
-            search_results.extend(keyword_results)
-      
-      # Search by channel only (when no keywords specified)
-      elif search_channel and not search_keywords:
-        timeframe_map = {
-          "Last 2 Days": "2days",
-          "Last Week": "week", 
-          "Last Month": "month",
-          "Anytime": "all"
-        }
-        timeframe_param = timeframe_map.get(search_timeframe, "week")
+        # Fallback to sample data if API fails
+        return search_youtube_by_channel(channel_name)
         
-        with st.spinner(f"🔍 Searching channel '{search_channel}'..."):
-          channel_results = search_youtube_videos(search_channel, youtube_api_key, timeframe=timeframe_param, search_type="channel")
-          if channel_results:
-            search_results.extend(channel_results)
-      
-      # Store and display results
-      if search_results:
-        # Remove duplicates based on video_id
-        unique_results = []
-        seen_ids = set()
-        for result in search_results:
-          if result['video_id'] not in seen_ids:
-            unique_results.append(result)
-            seen_ids.add(result['video_id'])
-        
-        st.session_state.youtube_search_results = unique_results
-        st.success(f"✅ Found {len(unique_results)} unique videos")
-      else:
-        st.error("❌ No results found. Try different search criteria.")
+    except Exception as e:
+        return search_youtube_by_channel(channel_name)  # Return sample data on error
 
-    # Display search results if they exist in session state
-    if 'youtube_search_results' in st.session_state and st.session_state.youtube_search_results:
-      search_results = st.session_state.youtube_search_results
-      
-      for i, video in enumerate(search_results, 1):
-        expanded_key = f"expanded_video_{i}"
-        if expanded_key not in st.session_state:
-            st.session_state[expanded_key] = False
+# Now replace your entire YouTube Intelligence platform section with this:
+
+if platform == "YouTube Intelligence":
+    # Hero-style header
+    st.markdown("""
+    <div style="margin-bottom: 4rem;">
+        <h1 style="font-size: 64px; font-weight: 900; text-transform: uppercase; letter-spacing: -2px; margin-bottom: 1rem;">
+        YouTube <span style="color: #BCE5F7;">Center</span>
+        </h1>
+        <p style="font-size: 24px; font-weight: 300; color: #666; max-width: 800px;">
+        Discover trending content, analyze audience sentiment, and generate data-driven content strategies.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Clean tabs with new styling
+    tab1, tab2, tab3 = st.tabs(["MULTI-CHANNEL SEARCH", "VIDEO SEARCH", "TRENDING ANALYSIS"])
+    
+    with tab1:
+        st.subheader("🔍 Multi-Channel Search")
+        st.info("💡 Search multiple YouTube channels and get AI-powered similar channel suggestions")
+        
+        # Initialize session state for selected channels
+        if 'selected_channels' not in st.session_state:
+            st.session_state.selected_channels = []
+        
+        # Channel management section
+        st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
+        st.markdown('<h3 style="font-size: 18px; font-weight: 700; text-transform: uppercase; margin-bottom: 1.5rem; color: #221F1F;">CHANNEL SELECTION</h3>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Add channel input
+            new_channel = st.text_input(
+                "ADD CHANNEL",
+                placeholder="e.g., 'PewDiePie', 'MrBeast', 'Markiplier'",
+                key="new_channel_input",
+                help="Enter any YouTube channel name to add it to your search"
+            )
             
-        # Check if any button for this video was clicked
-        if (f"analyze_video_{i}" in st.session_state or 
-            f"comments_{i}" in st.session_state or
-            f"reaction_analysis_{i}" in st.session_state or
-            f"comment_analysis_{i}" in st.session_state):
-            st.session_state[expanded_key] = True
-
-        with st.expander(
-            f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", 
-            expanded=st.session_state[expanded_key]
-        ):
-          # Add clean metric display
-          st.markdown(f"""
-          <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
-            <div>
-              <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
-              <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
-            </div>
-            <div>
-              <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
-              <p style="font-size: 20px; font-weight: 600;">{video.get('views', 'N/A')}</p>
-            </div>
-            <div>
-              <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
-              <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
-            </div>
-          </div>
-          """, unsafe_allow_html=True)
-          
-          # Add description and thumbnail after metrics
-          if video.get('description'):
-            st.write(f"**Description:** {video['description']}")
-
-          if video.get('thumbnail'):
-            st.image(video['thumbnail'], width=200)
-          
-          
-          if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
-            st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-          
-          # Action buttons
-          col_a, col_b = st.columns(2)
-          
-          with col_a:
-            # Creator reaction analysis for individual videos
-            if api_key:
-              if st.button(f"{creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
-                with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
-                  reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
+            if st.button("➕ Add Channel", key="add_channel_btn") and new_channel:
+                if new_channel not in st.session_state.selected_channels:
+                    st.session_state.selected_channels.append(new_channel)
+                    st.success(f"✅ Added '{new_channel}' to your channel list")
+                    st.rerun()
+                else:
+                    st.warning(f"'{new_channel}' is already in your list")
+            
+            # Remove channel dropdown
+            if st.session_state.selected_channels:
+                channel_to_remove = st.selectbox(
+                    "REMOVE CHANNEL",
+                    [""] + st.session_state.selected_channels,
+                    key="remove_channel_select"
+                )
+                
+                if st.button("➖ Remove Channel", key="remove_channel_btn") and channel_to_remove:
+                    st.session_state.selected_channels.remove(channel_to_remove)
+                    st.success(f"✅ Removed '{channel_to_remove}' from your list")
+                    st.rerun()
+        
+        with col2:
+            # Search settings
+            search_timeframe = st.selectbox(
+                "TIMEFRAME",
+                ["Last Week", "Last Month", "Last 3 Months"],
+                key="multi_channel_timeframe"
+            )
+            
+            max_videos_per_channel = st.slider(
+                "VIDEOS PER CHANNEL",
+                1, 10, 5,
+                key="videos_per_channel_slider"
+            )
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Display current selection
+        if st.session_state.selected_channels:
+            st.markdown("**📋 Current Channel Selection:**")
+            channels_display = ", ".join(st.session_state.selected_channels)
+            st.info(f"🎯 **{len(st.session_state.selected_channels)} channels selected:** {channels_display}")
+        else:
+            st.warning("🔍 No channels selected. Add channels above or use 'Get Relevant Channels' button.")
+        
+        # Action buttons
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            if st.button("🔍 SEARCH CHANNELS", type="primary", key="search_channels_btn", use_container_width=True):
+                if not st.session_state.selected_channels:
+                    st.warning("Please add at least one channel to search")
+                else:
+                    st.session_state.should_search_channels = True
+                    st.session_state.multi_channel_search_params = {
+                        'channels': st.session_state.selected_channels,
+                        'timeframe': search_timeframe,
+                        'max_videos': max_videos_per_channel
+                    }
+        
+        with col2:
+            if st.button("🎯 GET RELEVANT CHANNELS", key="get_relevant_channels_btn", use_container_width=True):
+                if creator_name:
+                    with st.spinner(f"Finding relevant channels for {creator_name}..."):
+                        relevant_channels = get_relevant_channels_for_creator(creator_name, api_key)
+                        if relevant_channels:
+                            # Add new channels to existing selection (no duplicates)
+                            new_channels_added = []
+                            for channel in relevant_channels:
+                                if channel not in st.session_state.selected_channels:
+                                    st.session_state.selected_channels.append(channel)
+                                    new_channels_added.append(channel)
+                            
+                            if new_channels_added:
+                                st.success(f"✅ Added {len(new_channels_added)} relevant channels for {creator_name}")
+                                st.info(f"**New channels:** {', '.join(new_channels_added)}")
+                            else:
+                                st.info("All suggested channels were already in your list")
+                            
+                            # Force rerun to update the display
+                            st.rerun()
+                        else:
+                            st.error("❌ Could not get relevant channels. Check your API key.")
+                else:
+                    st.warning("Please enter a creator name in the sidebar first")
+        
+        # Execute multi-channel search
+        if st.session_state.get('should_search_channels', False):
+            search_params = st.session_state.multi_channel_search_params
+            
+            st.markdown("---")
+            st.subheader(f"🔍 Search Results ({len(search_params['channels'])} channels)")
+            
+            for channel in search_params['channels']:
+                with st.expander(f"📺 {channel}", expanded=True):
+                    with st.spinner(f"Searching {channel}..."):
+                        # Search videos for this specific channel
+                        channel_videos = search_youtube_by_channel(
+                            channel, 
+                            youtube_api_key, 
+                            search_params['max_videos']
+                        )
+                        
+                        if channel_videos:
+                            st.success(f"✅ Found {len(channel_videos)} recent videos from {channel}")
+                            
+                            for i, video in enumerate(channel_videos, 1):
+                                with st.container():
+                                    col1, col2 = st.columns([3, 1])
+                                    
+                                    with col1:
+                                        st.write(f"**{i}. {video['title']}**")
+                                        st.write(f"👁️ {video.get('views', 'N/A')} | 📅 {video.get('published', 'N/A')}")
+                                        if video.get('description'):
+                                            st.write(f"📝 {video['description'][:100]}...")
+                                    
+                                    with col2:
+                                        if st.button(f"🎯 {creator_name} Reaction Ideas", key=f"analyze_channel_{channel}_{i}"):
+                                            if creator_name:
+                                                with st.spinner(f"Analyzing how {creator_name} could react..."):
+                                                    reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
 
 Title: {video['title']}
 Channel: {video['channel']}
@@ -2524,216 +2614,505 @@ OPENING HOOK: How {creator_name} should start the reaction to grab attention
 BEST MOMENTS: Which parts of the original video to focus on for maximum impact
 SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
 ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
-                  
-                  try:
-                    import openai
-                    openai.api_key = api_key
-                    
-                    response = openai.ChatCompletion.create(
-                      model="gpt-4.1-nano",
-                      messages=[{"role": "user", "content": reaction_prompt}],
-                      max_tokens=700,
-                      timeout=30
-                    )
-                    
-                    # Store analysis in session state
-                    analysis_key = f"reaction_analysis_{i}"
-                    st.session_state[analysis_key] = response.choices[0].message.content
-                    
-                  except Exception as e:
-                    st.session_state[f"reaction_analysis_{i}"] = f"AI Analysis Error: {str(e)}"
-            else:
-              st.info("⚠️ AI analysis unavailable - configure OpenAI API key")
-          
-          with col_b:
-            # Comment analysis
-            if api_key and video.get('video_id'):
-              if st.button(f"Analyze Comments", key=f"comments_{i}"):
-                with st.spinner(f"🤖 Analyzing comments for {creator_name}..."):
-                  comments = get_youtube_comments(video['video_id'], youtube_api_key)
-                  
-                  if comments:
-                    # Store comments in session state
-                    st.session_state[f"comments_data_{i}"] = comments
-                    
-                    # AI analysis of comments
-                    comment_analysis = analyze_video_comments_with_ai(comments, video['title'], creator_name, api_key)
-                    st.session_state[f"comment_analysis_{i}"] = comment_analysis
-                  else:
-                    st.session_state[f"comment_analysis_{i}"] = "No comments available for analysis"
-            else:
-              st.info("⚠️ Comment analysis unavailable - configure API keys")
-          
-          # Display stored reaction analysis
-          if f"reaction_analysis_{i}" in st.session_state:
-            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-            st.markdown("""
-            <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-              AI Analysis <span style="color: #BCE5F7;">Results</span>
-            </h3>
-            """, unsafe_allow_html=True)
-            st.markdown(f"### {creator_name} Reaction Strategy")
-            st.write(st.session_state[f"reaction_analysis_{i}"])
-            st.markdown('</div>', unsafe_allow_html=True)
-          
-          # Display stored comment analysis
-          if f"comment_analysis_{i}" in st.session_state:
-            analysis = st.session_state[f"comment_analysis_{i}"]
+                                                    
+                                                    try:
+                                                        import openai
+                                                        openai.api_key = api_key
+                                                        
+                                                        response = openai.ChatCompletion.create(
+                                                            model="gpt-3.5-turbo",
+                                                            messages=[{"role": "user", "content": reaction_prompt}],
+                                                            max_tokens=700,
+                                                            timeout=30
+                                                        )
+                                                        
+                                                        st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                                        st.markdown(f"### {creator_name} Reaction Strategy")
+                                                        st.write(response.choices[0].message.content)
+                                                        st.markdown('</div>', unsafe_allow_html=True)
+                                                    except Exception as e:
+                                                        st.error(f"AI Analysis Error: {str(e)}")
+                                            else:
+                                                st.warning("Enter creator name first")
+                                    
+                                    st.markdown("---")
+                        else:
+                            st.error(f"❌ Could not find recent videos from {channel}")
             
-            if f"comments_data_{i}" in st.session_state:
-              comments = st.session_state[f"comments_data_{i}"]
-              st.write("**Top Comments:**")
-              if isinstance(comments, list) and comments:
-                for j, comment in enumerate(comments[:5], 1):
-                  st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
-              else:
-                st.write("No comments available to display")
-            
-            if analysis and not analysis.startswith("Comment Analysis Error"):
-              st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-              st.markdown("""
-              <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-                AI Analysis <span style="color: #BCE5F7;">Results</span>
-              </h3>
-              """, unsafe_allow_html=True)
-              st.markdown(f"### Comment Analysis for {creator_name}")
-              st.write(analysis)
-              st.markdown('</div>', unsafe_allow_html=True)
-            elif analysis:
-              st.error(analysis)
-# Two-column intro
-    st.markdown("""
-    <div class="two-column" style="margin-bottom: 3rem;">
-    <div>
-        <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
-        Search <span style="color: #BCE5F7;">Smarter</span>
-        </h2>
-        <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
-        Find videos by keywords, channels, or direct URLs. Apply time filters to discover the freshest content.
-        </p>
-    </div>
-    <div style="padding-left: 3rem;">
-        <div class="numbered-list">
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
-            <span style="font-size: 18px;">Enter search criteria</span>
-        </div>
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
-            <span style="font-size: 18px;">Analyze results with AI</span>
-        </div>
-        <div style="display: flex; align-items: center;">
-            <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
-            <span style="font-size: 18px;">Generate content ideas</span>
-        </div>
-        </div>
-    </div>
-    </div>
-    """, unsafe_allow_html=True)
-  
-  with tab2:
-    st.subheader("What's Trending on YouTube")
+            # Clear the search flag
+            st.session_state.should_search_channels = False
     
-    col1, col2 = st.columns([2, 1])
-    with col1:
-      if st.button("Get Trending Videos", key="get_youtube_trending"):
-        with st.spinner("Fetching trending YouTube videos..."):
-          trending_videos = get_youtube_trending(youtube_api_key)
-          st.session_state.trending_videos = trending_videos
-    
-    with col2:
-      region = st.selectbox("Region", ["US", "CA", "GB", "AU", "DE", "FR"], key="youtube_region")
-    
-    if 'trending_videos' in st.session_state:
-      trending_videos = st.session_state.trending_videos
-      
-      if trending_videos:
-        st.success(f"✅ Found {len(trending_videos)} trending videos")
+    with tab2:
+        # Clean search inputs with better spacing
+        st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
         
-        for i, video in enumerate(trending_videos, 1):
-            expanded_key = f"expanded_trending_{i}"
-            if expanded_key not in st.session_state:
-                st.session_state[expanded_key] = False
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            search_keywords = st.text_input(
+                "KEYWORDS", 
+                placeholder="e.g., 'true crime stories', 'makeup tutorial'", 
+                key="keyword_input",
+                label_visibility="visible"
+            )
+        with col2:
+            search_timeframe = st.selectbox(
+                "TIMEFRAME", 
+                ["Last 2 Days", "Last Week", "Last Month", "Anytime"], 
+                key="youtube_timeframe"
+            )
+        
+        search_channel = st.text_input(
+            "CHANNEL NAME", 
+            placeholder="e.g., 'Bailey Sarian', 'MrBeast'", 
+            key="channel_input"
+        )
+        
+        video_url = st.text_input(
+            "VIDEO URL", 
+            placeholder="e.g., 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'", 
+            key="video_url_input"
+        )
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Search button - styled as primary CTA
+        if st.button("SEARCH YOUTUBE", key="search_youtube", type="primary", use_container_width=True):
+            search_results = [] # Initialize search_results here
+            
+            # Extract video ID from URL if provided
+            if video_url:
+                video_id = None
+                if "youtube.com/watch?v=" in video_url:
+                    video_id = video_url.split("v=")[1].split("&")[0]
+                elif "youtu.be/" in video_url:
+                    video_id = video_url.split("youtu.be/")[1].split("?")[0]
+                else:
+                    # Assume it's just the video ID
+                    video_id = video_url.strip()
                 
-            # Check if button for this video was clicked
-            if f"reaction_trending_{i}" in st.session_state:
-                st.session_state[expanded_key] = True
+                if video_id:
+                    # Fetch specific video details
+                    st.info(f"🎥 Fetching video: {video_id}")
+                    video_details = get_video_by_id(video_id, youtube_api_key)
+                    if video_details:
+                        search_results.append(video_details)
+                    else:
+                        # Fallback if API fails
+                        search_results.append({
+                            "title": f"Video: {video_id}",
+                            "channel": "Unable to fetch details",
+                            "views": "N/A",
+                            "published": "N/A",
+                            "video_id": video_id,
+                            "description": "Could not retrieve video details. Check your API key.",
+                            "thumbnail": f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
+                        })
+            
+            # Handle combined keyword + channel search
+            if search_keywords and search_channel:
+                # When both are specified, search within the channel for the keywords
+                timeframe_map = {
+                    "Last 2 Days": "2days",
+                    "Last Week": "week", 
+                    "Last Month": "month",
+                    "Anytime": "all"
+                }
+                timeframe_param = timeframe_map.get(search_timeframe, "week")
+                
+                with st.spinner(f"🔍 Searching for '{search_keywords}' in channel '{search_channel}'..."):
+                    # First, find the channel
+                    search_url = "https://www.googleapis.com/youtube/v3/search"
+                    channel_params = {
+                        'part': 'snippet',
+                        'q': search_channel,
+                        'type': 'channel',
+                        'maxResults': 1,
+                        'key': youtube_api_key
+                    }
+                    
+                    try:
+                        channel_response = requests.get(search_url, params=channel_params, timeout=15)
+                        
+                        if channel_response.status_code == 200:
+                            channel_data = channel_response.json()
+                            if channel_data.get('items'):
+                                channel_id = channel_data['items'][0]['id']['channelId']
+                                
+                                # Now search for keywords within this channel
+                                video_params = {
+                                    'part': 'snippet',
+                                    'channelId': channel_id,
+                                    'q': search_keywords, # Add keyword search within the channel
+                                    'type': 'video',
+                                    'order': 'relevance',
+                                    'maxResults': 10,
+                                    'key': youtube_api_key
+                                }
+                                
+                                # Add timeframe filter
+                                if timeframe_param == "2days":
+                                    published_after = (datetime.now() - timedelta(days=2)).isoformat() + 'Z'
+                                elif timeframe_param == "week":
+                                    published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+                                elif timeframe_param == "month":
+                                    published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+                                elif timeframe_param != "all":
+                                    published_after = (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+                                
+                                if timeframe_param != "all":
+                                    video_params['publishedAfter'] = published_after
+                                
+                                video_response = requests.get(search_url, params=video_params, timeout=15)
+                                
+                                if video_response.status_code == 200:
+                                    video_data = video_response.json()
+                                    
+                                    for item in video_data.get('items', []):
+                                        snippet = item.get('snippet', {})
+                                        
+                                        video_data_item = {
+                                            'title': snippet.get('title', 'No title'),
+                                            'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                                            'published': snippet.get('publishedAt', 'Unknown'),
+                                            'video_id': item.get('id', {}).get('videoId', ''),
+                                            'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                                            'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                                        }
+                                        search_results.append(video_data_item)
+                                    
+                                    st.success(f"✅ Found videos matching '{search_keywords}' in '{search_channel}' channel")
+                    except Exception as e:
+                        st.warning(f"⚠️ Combined search failed: {str(e)[:50]}...")
+            
+            # Search by keywords only (when no channel specified)
+            elif search_keywords and not search_channel:
+                # Convert timeframe to API parameter
+                timeframe_map = {
+                    "Last 2 Days": "2days",
+                    "Last Week": "week", 
+                    "Last Month": "month",
+                    "Anytime": "any"
+                }
+                timeframe_param = timeframe_map.get(search_timeframe, "week")
+                
+                with st.spinner(f"🔍 Searching for '{search_keywords}'..."):
+                    keyword_results = search_youtube_videos(search_keywords, youtube_api_key, timeframe=timeframe_param, search_type="video")
+                    if keyword_results:
+                        search_results.extend(keyword_results)
+            
+            # Search by channel only (when no keywords specified)
+            elif search_channel and not search_keywords:
+                timeframe_map = {
+                    "Last 2 Days": "2days",
+                    "Last Week": "week", 
+                    "Last Month": "month",
+                    "Anytime": "all"
+                }
+                timeframe_param = timeframe_map.get(search_timeframe, "week")
+                
+                with st.spinner(f"🔍 Searching channel '{search_channel}'..."):
+                    channel_results = search_youtube_videos(search_channel, youtube_api_key, timeframe=timeframe_param, search_type="channel")
+                    if channel_results:
+                        search_results.extend(channel_results)
+            
+            # Store and display results
+            if search_results:
+                # Remove duplicates based on video_id
+                unique_results = []
+                seen_ids = set()
+                for result in search_results:
+                    if result['video_id'] not in seen_ids:
+                        unique_results.append(result)
+                        seen_ids.add(result['video_id'])
+                
+                st.session_state.youtube_search_results = unique_results
+                st.success(f"✅ Found {len(unique_results)} unique videos")
+            else:
+                st.error("❌ No results found. Try different search criteria.")
 
-            with st.expander(
-                f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", 
-                expanded=st.session_state[expanded_key]
-            ):
-                # Add clean metric display for trending videos
-                st.markdown(f"""
-                <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
-                <div>
-                    <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
-                    <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
-                </div>
-                <div>
-                    <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
-                    <p style="font-size: 20px; font-weight: 600;">{video['views']}</p>
-                </div>
-                <div>
-                    <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
-                    <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
-                </div>
-                </div>
-                """, unsafe_allow_html=True)
+        # Display search results if they exist in session state
+        if 'youtube_search_results' in st.session_state and st.session_state.youtube_search_results:
+            search_results = st.session_state.youtube_search_results
+            
+            for i, video in enumerate(search_results, 1):
+                expanded_key = f"expanded_video_{i}"
+                if expanded_key not in st.session_state:
+                    st.session_state[expanded_key] = False
+                    
+                # Check if any button for this video was clicked
+                if (f"analyze_video_{i}" in st.session_state or 
+                    f"comments_{i}" in st.session_state or
+                    f"reaction_analysis_{i}" in st.session_state or
+                    f"comment_analysis_{i}" in st.session_state):
+                    st.session_state[expanded_key] = True
 
-                # After the metric display HTML, add:
-                if video.get('description'):
-                    st.write(f"**Description:** {video['description']}")
+                with st.expander(
+                    f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", 
+                    expanded=st.session_state[expanded_key]
+                ):
+                    # Add clean metric display
+                    st.markdown(f"""
+                    <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
+                        <div>
+                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
+                        <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
+                        </div>
+                        <div>
+                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
+                        <p style="font-size: 20px; font-weight: 600;">{video.get('views', 'N/A')}</p>
+                        </div>
+                        <div>
+                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
+                        <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Add description and thumbnail after metrics
+                    if video.get('description'):
+                        st.write(f"**Description:** {video['description']}")
 
-                if video.get('thumbnail'):
-                    st.image(video['thumbnail'], width=200)
+                    if video.get('thumbnail'):
+                        st.image(video['thumbnail'], width=200)
+                    
+                    
+                    if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
+                        st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                    
+                    # Action buttons
+                    col_a, col_b = st.columns(2)
+                    
+                    with col_a:
+                        # Creator reaction analysis for individual videos
+                        if api_key:
+                            if st.button(f"{creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
+                                with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
+                                    reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
 
-                # Creator reaction analysis for each video
-                if api_key:
-                    if st.button(f"{creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
-                        with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
-                            reaction_prompt = f"""Analyze this trending YouTube video for {creator_name}'s reaction content:
+Title: {video['title']}
+Channel: {video['channel']}
+Description: {video.get('description', 'No description')}
 
-        Title: {video['title']}
-        Channel: {video['channel']}
-        Views: {video['views']}
-        Description: {video.get('description', 'No description')}
+Provide {creator_name}'s reaction strategy:
 
-        Provide {creator_name}'s reaction strategy:
+REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
+{creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
+HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
+OPENING HOOK: How {creator_name} should start the reaction to grab attention
+BEST MOMENTS: Which parts of the original video to focus on for maximum impact
+SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
+ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+                                    
+                                    try:
+                                        import openai
+                                        openai.api_key = api_key
+                                        
+                                        response = openai.ChatCompletion.create(
+                                            model="gpt-3.5-turbo",
+                                            messages=[{"role": "user", "content": reaction_prompt}],
+                                            max_tokens=700,
+                                            timeout=30
+                                        )
+                                        
+                                        # Store analysis in session state
+                                        analysis_key = f"reaction_analysis_{i}"
+                                        st.session_state[analysis_key] = response.choices[0].message.content
+                                        
+                                    except Exception as e:
+                                        st.session_state[f"reaction_analysis_{i}"] = f"AI Analysis Error: {str(e)}"
+                        else:
+                            st.info("⚠️ AI analysis unavailable - configure OpenAI API key")
+                    
+                    with col_b:
+                        # Comment analysis
+                        if api_key and video.get('video_id'):
+                            if st.button(f"Analyze Comments", key=f"comments_{i}"):
+                                with st.spinner(f"🤖 Analyzing comments for {creator_name}..."):
+                                    comments = get_youtube_comments(video['video_id'], youtube_api_key)
+                                    
+                                    if comments:
+                                        # Store comments in session state
+                                        st.session_state[f"comments_data_{i}"] = comments
+                                        
+                                        # AI analysis of comments
+                                        comment_analysis = analyze_video_comments_with_ai(comments, video['title'], creator_name, api_key)
+                                        st.session_state[f"comment_analysis_{i}"] = comment_analysis
+                                    else:
+                                        st.session_state[f"comment_analysis_{i}"] = "No comments available for analysis"
+                        else:
+                            st.info("⚠️ Comment analysis unavailable - configure API keys")
+                    
+                    # Display stored reaction analysis
+                    if f"reaction_analysis_{i}" in st.session_state:
+                        st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                        st.markdown("""
+                        <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                        AI Analysis <span style="color: #BCE5F7;">Results</span>
+                        </h3>
+                        """, unsafe_allow_html=True)
+                        st.markdown(f"### {creator_name} Reaction Strategy")
+                        st.write(st.session_state[f"reaction_analysis_{i}"])
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # Display stored comment analysis
+                    if f"comment_analysis_{i}" in st.session_state:
+                        analysis = st.session_state[f"comment_analysis_{i}"]
+                        
+                        if f"comments_data_{i}" in st.session_state:
+                            comments = st.session_state[f"comments_data_{i}"]
+                            st.write("**Top Comments:**")
+                            if isinstance(comments, list) and comments:
+                                for j, comment in enumerate(comments[:5], 1):
+                                    st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
+                            else:
+                                st.write("No comments available to display")
+                        
+                        if analysis and not analysis.startswith("Comment Analysis Error"):
+                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                            st.markdown("""
+                            <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                            AI Analysis <span style="color: #BCE5F7;">Results</span>
+                            </h3>
+                            """, unsafe_allow_html=True)
+                            st.markdown(f"### Comment Analysis for {creator_name}")
+                            st.write(analysis)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                        elif analysis:
+                            st.error(analysis)
 
-        REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
-        {creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
-        HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
-        OPENING HOOK: How {creator_name} should start the reaction to grab attention
-        BEST MOMENTS: Which parts of the original video to focus on for maximum impact
-        SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
-        ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+        # Two-column intro
+        st.markdown("""
+        <div class="two-column" style="margin-bottom: 3rem;">
+        <div>
+            <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
+            Search <span style="color: #BCE5F7;">Smarter</span>
+            </h2>
+            <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
+            Find videos by keywords, channels, or direct URLs. Apply time filters to discover the freshest content.
+            </p>
+        </div>
+        <div style="padding-left: 3rem;">
+            <div class="numbered-list">
+            <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
+                <span style="font-size: 18px;">Enter search criteria</span>
+            </div>
+            <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
+                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
+                <span style="font-size: 18px;">Analyze results with AI</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
+                <span style="font-size: 18px;">Generate content ideas</span>
+            </div>
+            </div>
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with tab3:
+        st.subheader("What's Trending on YouTube")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("Get Trending Videos", key="get_youtube_trending"):
+                with st.spinner("Fetching trending YouTube videos..."):
+                    trending_videos = get_youtube_trending(youtube_api_key)
+                    st.session_state.trending_videos = trending_videos
+        
+        with col2:
+            region = st.selectbox("Region", ["US", "CA", "GB", "AU", "DE", "FR"], key="youtube_region")
+        
+        if 'trending_videos' in st.session_state:
+            trending_videos = st.session_state.trending_videos
+            
+            if trending_videos:
+                st.success(f"✅ Found {len(trending_videos)} trending videos")
+                
+                for i, video in enumerate(trending_videos, 1):
+                    expanded_key = f"expanded_trending_{i}"
+                    if expanded_key not in st.session_state:
+                        st.session_state[expanded_key] = False
+                        
+                    # Check if button for this video was clicked
+                    if f"reaction_trending_{i}" in st.session_state:
+                        st.session_state[expanded_key] = True
+
+                    with st.expander(
+                        f"{i:02d} | {video['title'][:60]}{'...' if len(video['title']) > 60 else ''}", 
+                        expanded=st.session_state[expanded_key]
+                    ):
+                        # Add clean metric display for trending videos
+                        st.markdown(f"""
+                        <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
+                        <div>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
+                            <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
+                            <p style="font-size: 20px; font-weight: 600;">{video['views']}</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
+                            <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
+                        </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        # After the metric display HTML, add:
+                        if video.get('description'):
+                            st.write(f"**Description:** {video['description']}")
+
+                        if video.get('thumbnail'):
+                            st.image(video['thumbnail'], width=200)
+
+                        # Creator reaction analysis for each video
+                        if api_key:
+                            if st.button(f"{creator_name} Reaction Ideas", key=f"reaction_trending_{i}"):
+                                with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
+                                    reaction_prompt = f"""Analyze this trending YouTube video for {creator_name}'s reaction content:
+
+Title: {video['title']}
+Channel: {video['channel']}
+Views: {video['views']}
+Description: {video.get('description', 'No description')}
+
+Provide {creator_name}'s reaction strategy:
+
+REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
+{creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
+HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
+OPENING HOOK: How {creator_name} should start the reaction to grab attention
+BEST MOMENTS: Which parts of the original video to focus on for maximum impact
+SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
+ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+                                    
+                                    try:
+                                        import openai
+                                        openai.api_key = api_key
+                                        
+                                        response = openai.ChatCompletion.create(
+                                            model="gpt-3.5-turbo",
+                                            messages=[{"role": "user", "content": reaction_prompt}],
+                                            max_tokens=700,
+                                            timeout=30
+                                        )
+                                        
+                                        st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                        st.markdown("""
+                                        <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
+                                        AI Analysis <span style="color: #BCE5F7;">Results</span>
+                                        </h3>
+                                        """, unsafe_allow_html=True)
+                                        st.write(response.choices[0].message.content)
+                                        st.markdown('</div>', unsafe_allow_html=True)
+                                    except Exception as e:
+                                        st.error(f"AI Analysis Error: {str(e)}")
+
+                        if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
+                            st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                             
-                            try:
-                                import openai
-                                openai.api_key = api_key
-                                
-                                response = openai.ChatCompletion.create(
-                                    model="gpt-4.1-nano",
-                                    messages=[{"role": "user", "content": reaction_prompt}],
-                                    max_tokens=700,
-                                    timeout=30
-                                )
-                                
-                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                                st.markdown("""
-                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-                                AI Analysis <span style="color: #BCE5F7;">Results</span>
-                                </h3>
-                                """, unsafe_allow_html=True)
-                                st.write(response.choices[0].message.content)
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            except Exception as e:
-                                st.error(f"AI Analysis Error: {str(e)}")
-
-                if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
-                    st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-
 elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret, _ = get_api_keys()
@@ -3374,7 +3753,6 @@ elif platform == "Movie & TV Trends":
                                 """, unsafe_allow_html=True)
                                 st.write(analysis)
                                 st.markdown('</div>', unsafe_allow_html=True)
-
 
 
 elif platform == "Reddit Analysis":
