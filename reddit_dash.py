@@ -421,6 +421,79 @@ def get_api_keys():
   tmdb_key = os.getenv('TMDB_API_KEY', '')
   return openai_key, youtube_key, spotify_client_id, spotify_client_secret, tmdb_key
 
+def get_relevant_subreddits_for_creator(creator_name, api_key):
+    """Use AI to find 12 most relevant subreddits for a creator"""
+    if not api_key:
+        return None
+    
+    prompt = f"""Analyze the creator "{creator_name}" and suggest the 12 most relevant subreddits for their content.
+
+Focus on:
+1. Subreddits that match their content niche/topic
+2. Communities with good audience size (avoid tiny subreddits with <10k members)
+3. Active communities where their content would be relevant
+4. Mix of primary niche + related/crossover communities
+5. Use actual existing subreddit names (check they exist)
+
+For example, if analyzing "Bailey Sarian":
+- Primary niche: TrueCrime, serialkillers, UnresolvedMysteries
+- Beauty crossover: MakeupAddiction, beauty, SkinCareAddiction  
+- Storytelling: nosleep, LetsNotMeet, creepy
+- General: AskReddit, todayilearned, videos
+
+Return ONLY a Python list of subreddit names (without r/ prefix), exactly like this format:
+["TrueCrime", "serialkillers", "UnresolvedMysteries", "MakeupAddiction", "beauty", "nosleep", "LetsNotMeet", "creepy", "AskReddit", "todayilearned", "videos", "entertainment"]
+
+Creator: {creator_name}"""
+
+    try:
+        import openai
+        openai.api_key = api_key
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
+            timeout=30
+        )
+        
+        # Parse the AI response to extract the list
+        response_text = response.choices[0].message.content.strip()
+        
+        # Try to extract the list from the response
+        import ast
+        try:
+            # Look for a list in the response
+            start = response_text.find('[')
+            end = response_text.find(']') + 1
+            if start != -1 and end != 0:
+                list_text = response_text[start:end]
+                subreddits = ast.literal_eval(list_text)
+                if isinstance(subreddits, list) and len(subreddits) <= 12:
+                    return subreddits[:12]  # Ensure max 12
+        except:
+            pass
+            
+        # Fallback: extract subreddit names manually using regex
+        import re
+        subreddits = re.findall(r'"([^"]+)"', response_text)
+        if subreddits:
+            return subreddits[:12]
+        
+        # Final fallback: try to extract words that look like subreddit names
+        words = response_text.replace('[', '').replace(']', '').replace('"', '').split(',')
+        clean_subreddits = []
+        for word in words:
+            clean_word = word.strip()
+            if clean_word and len(clean_word) > 2 and len(clean_word) < 25:
+                clean_subreddits.append(clean_word)
+        
+        return clean_subreddits[:12] if clean_subreddits else None
+            
+    except Exception as e:
+        st.error(f"Error getting relevant subreddits: {str(e)}")
+        return None
+
 # Get API keys from environment variables
 api_key, youtube_api_key, spotify_client_id, spotify_client_secret, tmdb_key = get_api_keys()
 
@@ -532,78 +605,7 @@ def get_reddit_posts(subreddit, category="hot", limit=5):
   
   return []
 
-def get_relevant_subreddits_for_creator(creator_name, api_key):
-    """Use AI to find 12 most relevant subreddits for a creator"""
-    if not api_key:
-        return None
-    
-    prompt = f"""Analyze the creator "{creator_name}" and suggest the 12 most relevant subreddits for their content.
 
-Focus on:
-1. Subreddits that match their content niche/topic
-2. Communities with good audience size (avoid tiny subreddits with <10k members)
-3. Active communities where their content would be relevant
-4. Mix of primary niche + related/crossover communities
-5. Use actual existing subreddit names (check they exist)
-
-For example, if analyzing "Bailey Sarian":
-- Primary niche: TrueCrime, serialkillers, UnresolvedMysteries
-- Beauty crossover: MakeupAddiction, beauty, SkinCareAddiction  
-- Storytelling: nosleep, LetsNotMeet, creepy
-- General: AskReddit, todayilearned, videos
-
-Return ONLY a Python list of subreddit names (without r/ prefix), exactly like this format:
-["TrueCrime", "serialkillers", "UnresolvedMysteries", "MakeupAddiction", "beauty", "nosleep", "LetsNotMeet", "creepy", "AskReddit", "todayilearned", "videos", "entertainment"]
-
-Creator: {creator_name}"""
-
-    try:
-        import openai
-        openai.api_key = api_key
-        
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=300,
-            timeout=30
-        )
-        
-        # Parse the AI response to extract the list
-        response_text = response.choices[0].message.content.strip()
-        
-        # Try to extract the list from the response
-        import ast
-        try:
-            # Look for a list in the response
-            start = response_text.find('[')
-            end = response_text.find(']') + 1
-            if start != -1 and end != 0:
-                list_text = response_text[start:end]
-                subreddits = ast.literal_eval(list_text)
-                if isinstance(subreddits, list) and len(subreddits) <= 12:
-                    return subreddits[:12]  # Ensure max 12
-        except:
-            pass
-            
-        # Fallback: extract subreddit names manually using regex
-        import re
-        subreddits = re.findall(r'"([^"]+)"', response_text)
-        if subreddits:
-            return subreddits[:12]
-        
-        # Final fallback: try to extract words that look like subreddit names
-        words = response_text.replace('[', '').replace(']', '').replace('"', '').split(',')
-        clean_subreddits = []
-        for word in words:
-            clean_word = word.strip()
-            if clean_word and len(clean_word) > 2 and len(clean_word) < 25:
-                clean_subreddits.append(clean_word)
-        
-        return clean_subreddits[:12] if clean_subreddits else None
-            
-    except Exception as e:
-        st.error(f"Error getting relevant subreddits: {str(e)}")
-        return None
 
 def get_top_comments(subreddit, post_id, limit=3):
   """Get top comments for a specific post"""
