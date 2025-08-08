@@ -3343,6 +3343,16 @@ elif platform == "Reddit Analysis":
       key="post_limit_slider"
     )
   
+  # Search logic explanation
+  if search_keywords and subreddit_input:
+    search_description = f"Search for '{search_keywords}' in r/{subreddit_input}"
+  elif search_keywords and not subreddit_input:
+    search_description = f"Search for '{search_keywords}' across all of Reddit"
+  elif not search_keywords and subreddit_input:
+    search_description = f"Browse {post_category} posts from r/{subreddit_input}"
+  else:
+    search_description = "Enter keywords or subreddit name to search"
+  
   st.markdown(f"""
   <div style="text-align: center; margin-bottom: 2rem;">
     <p style="font-size: 18px; color: #666; font-style: italic;">{search_description}</p>
@@ -3573,7 +3583,7 @@ elif platform == "Reddit Analysis":
     </div>
   </div>
   """, unsafe_allow_html=True)
-      
+        
 
 elif platform == "Google Trends":
     # Hero-style header
