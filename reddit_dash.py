@@ -393,20 +393,6 @@ creator_name = st.sidebar.text_input(
   key="creator_name_input"
 )
 
-if st.sidebar.button("Update Creator", key="update_creator_btn", use_container_width=True):
-    if creator_name:
-        with st.spinner(f"Finding relevant subreddits for {creator_name}..."):
-            relevant_subreddits = get_relevant_subreddits_for_creator(creator_name, api_key)
-            if relevant_subreddits:
-                st.session_state.creator_subreddits = relevant_subreddits
-                st.session_state.creator_updated = True
-                st.session_state.current_creator = creator_name  # Track which creator this is for
-                st.success(f"✅ Updated subreddits for {creator_name}")
-            else:
-                st.error("❌ Could not get subreddits. Check your API key.")
-    else:
-        st.warning("Please enter a creator name first")
-
 st.sidebar.markdown("---")
 
 
@@ -3405,6 +3391,12 @@ elif platform == "Reddit Analysis":
   </div>
   """, unsafe_allow_html=True)
   
+  # Handle dynamic subreddit selection
+  if 'selected_subreddits' in st.session_state:
+      default_subreddits = st.session_state.selected_subreddits
+  else:
+      default_subreddits = ["TrueCrime"]
+
   # Clean main search section
   st.markdown('<h3 style="font-size: 18px; font-weight: 700; text-transform: uppercase; margin-bottom: 1.5rem; color: #221F1F; margin-top: 2rem;">SEARCH REDDIT</h3>', unsafe_allow_html=True)
   
@@ -3417,15 +3409,23 @@ elif platform == "Reddit Analysis":
       "SEARCH KEYWORDS (optional)", 
       placeholder="e.g., 'trump speech', 'taylor swift', 'election news'", 
       key="keywords_input",
-      help="Leave empty to browse a subreddit without keyword filtering"
+      help="Leave empty to browse subreddits without keyword filtering"
     )
     
-    # Subreddit input
-    subreddit_input = st.text_input(
-      "SUBREDDIT NAME (optional)", 
-      value="TrueCrime",
-      placeholder="e.g., TrueCrime, politics, Conservative, news", 
-      key="subreddit_input",
+    # Multi-select subreddit input
+    subreddit_options = [
+      "TrueCrime", "AskReddit", "politics", "Conservative", "news", "worldnews", 
+      "technology", "movies", "television", "music", "gaming", "sports",
+      "funny", "todayilearned", "science", "relationships", "food", "fitness",
+      "travel", "books", "photography", "MakeupAddiction", "beauty", "serialkillers",
+      "UnresolvedMysteries", "nosleep", "LetsNotMeet", "creepy", "entertainment"
+    ]
+    
+    selected_subreddits = st.multiselect(
+      "SUBREDDIT NAMES (optional)",
+      options=subreddit_options,
+      default=default_subreddits,
+      placeholder="Select subreddits to search",
       help="Leave empty to search all of Reddit"
     )
   
@@ -3451,14 +3451,14 @@ elif platform == "Reddit Analysis":
     )
   
   # Search logic explanation
-  if search_keywords and subreddit_input:
-    search_description = f"Search for '{search_keywords}' in r/{subreddit_input}"
-  elif search_keywords and not subreddit_input:
+  if search_keywords and selected_subreddits:
+    search_description = f"Search for '{search_keywords}' in {len(selected_subreddits)} selected subreddits"
+  elif search_keywords and not selected_subreddits:
     search_description = f"Search for '{search_keywords}' across all of Reddit"
-  elif not search_keywords and subreddit_input:
-    search_description = f"Browse {post_category} posts from r/{subreddit_input}"
+  elif not search_keywords and selected_subreddits:
+    search_description = f"Browse {post_category} posts from {len(selected_subreddits)} selected subreddits"
   else:
-    search_description = "Enter keywords or subreddit name to search"
+    search_description = "Enter keywords or select subreddits to search"
   
   st.markdown(f"""
   <div style="text-align: center; margin-bottom: 2rem;">
@@ -3466,20 +3466,42 @@ elif platform == "Reddit Analysis":
   </div>
   """, unsafe_allow_html=True)
   
-  # Prominent search button
-  col1, col2, col3 = st.columns([1, 2, 1])
-  with col2:
+  # Search buttons side by side
+  col1, col2, col3 = st.columns([1, 1, 1])
+  
+  with col1:
     if st.button("🔍 SEARCH REDDIT", type="primary", key="search_reddit_btn", use_container_width=True):
-      if not search_keywords and not subreddit_input:
-        st.warning("Please enter either keywords to search for or a subreddit name to browse")
+      if not search_keywords and not selected_subreddits:
+        st.warning("Please enter keywords or select subreddits to search")
       else:
         st.session_state.should_search = True
         st.session_state.search_params = {
           'keywords': search_keywords,
-          'subreddit': subreddit_input,
+          'subreddits': selected_subreddits,
           'category': post_category,
           'limit': post_limit
         }
+  
+  with col2:
+    if st.button("🎯 GET RELEVANT SUBREDDITS", key="get_relevant_btn", use_container_width=True):
+      if creator_name:
+        with st.spinner(f"Finding relevant subreddits for {creator_name}..."):
+          relevant_subreddits = get_relevant_subreddits_for_creator(creator_name, api_key)
+          if relevant_subreddits:
+            # Take only top 5 most relevant
+            top_5_subreddits = relevant_subreddits[:5]
+            
+            # Update the multiselect with these subreddits
+            st.session_state.selected_subreddits = top_5_subreddits
+            st.success(f"✅ Added {len(top_5_subreddits)} relevant subreddits for {creator_name}")
+            st.info(f"Selected: {', '.join(top_5_subreddits)}")
+            
+            # Force rerun to update the multiselect display
+            st.rerun()
+          else:
+            st.error("❌ Could not get relevant subreddits. Check your API key.")
+      else:
+        st.warning("Please enter a creator name in the sidebar first")
   
   # Execute search when button is clicked
   if hasattr(st.session_state, 'should_search') and st.session_state.should_search:
@@ -3487,73 +3509,55 @@ elif platform == "Reddit Analysis":
     params = st.session_state.search_params
     
     keywords = params['keywords']
-    subreddit = params['subreddit']
+    subreddits = params['subreddits']
     category = params['category']
     limit = params['limit']
     
     # Determine search strategy
-    if keywords and subreddit:
-      # Search for keywords within a specific subreddit using a better approach
-      st.info(f"🔍 Searching for '{keywords}' in r/{subreddit}...")
+    if keywords and subreddits:
+      # Search for keywords within selected subreddits
+      st.info(f"🔍 Searching for '{keywords}' in {len(subreddits)} subreddits...")
       
-      # First, get regular posts from the subreddit
-      with st.spinner(f"Getting posts from r/{subreddit}..."):
-        posts = get_reddit_posts(subreddit, category, limit * 3)  # Get more posts to filter
+      all_posts = []
+      for subreddit in subreddits:
+        # Get posts from the subreddit
+        posts = get_reddit_posts(subreddit, category, limit)
+        
+        if posts:
+          # Filter posts that contain the keywords
+          keywords_lower = keywords.lower()
+          for post in posts:
+            post_data = post['data']
+            title = post_data.get('title', '').lower()
+            selftext = post_data.get('selftext', '').lower()
+            
+            # Check if keywords appear in title or content
+            if keywords_lower in title or keywords_lower in selftext:
+              post['data']['source_subreddit'] = subreddit
+              all_posts.append(post)
       
-      if posts:
-        # Filter posts that contain the keywords in title or content
-        keywords_lower = keywords.lower()
-        matching_posts = []
+      if all_posts:
+        # Sort by score and limit results
+        all_posts.sort(key=lambda x: x['data']['score'], reverse=True)
+        limited_posts = all_posts[:limit * len(subreddits)]
         
-        for post in posts:
-          post_data = post['data']
-          title = post_data.get('title', '').lower()
-          selftext = post_data.get('selftext', '').lower()
-          
-          # Check if keywords appear in title or content
-          if keywords_lower in title or keywords_lower in selftext:
-            matching_posts.append(post)
+        st.success(f"✅ Found {len(limited_posts)} posts containing '{keywords}' in selected subreddits")
         
-        if matching_posts:
-          # Limit to requested number
-          matching_posts = matching_posts[:limit]
-          st.success(f"✅ Found {len(matching_posts)} posts containing '{keywords}' in r/{subreddit}")
-          display_posts(matching_posts, subreddit, api_key, creator_name)
-        else:
-          # If no matches, try Reddit's search as fallback
-          st.warning(f"No posts containing '{keywords}' found in recent {category} posts.")
-          st.info("Trying Reddit's search API as backup...")
-          
-          try:
-            search_url = f"https://www.reddit.com/r/{subreddit}/search.json"
-            params_dict = {
-              'q': keywords,
-              'restrict_sr': 'true',
-              'sort': 'relevance',
-              't': 'week',  # Expand time range
-              'limit': limit,
-              'raw_json': 1
-            }
-            
-            time.sleep(2)
-            response = requests.get(search_url, headers=HEADERS, params=params_dict, timeout=15)
-            
-            if response.status_code == 200:
-              data = response.json()
-              if 'data' in data and 'children' in data['data'] and data['data']['children']:
-                posts = data['data']['children']
-                st.success(f"✅ Found {len(posts)} posts via search API")
-                display_posts(posts, subreddit, api_key, creator_name)
-              else:
-                st.warning(f"No results found for '{keywords}' in r/{subreddit}. Try browsing without keywords or different terms.")
-            else:
-              st.warning(f"Search API unavailable. Try browsing r/{subreddit} without keywords.")
-          except Exception as e:
-            st.warning(f"Search unavailable. Try browsing r/{subreddit} without keywords.")
+        # Group by subreddit for display
+        grouped_posts = {}
+        for post in limited_posts:
+          sub = post['data']['source_subreddit']
+          if sub not in grouped_posts:
+            grouped_posts[sub] = []
+          grouped_posts[sub].append(post)
+        
+        for sub, sub_posts in grouped_posts.items():
+          st.subheader(f"r/{sub} ({len(sub_posts)} posts)")
+          display_posts(sub_posts, sub, api_key, creator_name)
       else:
-        st.error(f"Could not access r/{subreddit}. Try a different subreddit.")
+        st.warning(f"No posts found containing '{keywords}' in selected subreddits")
     
-    elif keywords and not subreddit:
+    elif keywords and not subreddits:
       # Search keywords across all Reddit
       st.info(f"🔍 Searching for '{keywords}' across all of Reddit...")
       
@@ -3563,7 +3567,7 @@ elif platform == "Reddit Analysis":
           'q': keywords,
           'sort': 'top' if category == 'top' else 'hot',
           't': 'day',
-          'limit': limit * 2,  # Get more results to filter
+          'limit': limit * 2,
           'type': 'link',
           'raw_json': 1
         }
@@ -3574,7 +3578,7 @@ elif platform == "Reddit Analysis":
         if response.status_code == 200:
           data = response.json()
           if 'data' in data and 'children' in data['data'] and data['data']['children']:
-            posts = data['data']['children'][:limit]  # Limit results
+            posts = data['data']['children'][:limit]
             
             # Add source subreddit info for display
             for post in posts:
@@ -3595,24 +3599,34 @@ elif platform == "Reddit Analysis":
               display_posts(sub_posts, sub, api_key, creator_name)
               
           else:
-            st.warning(f"No posts found for '{keywords}'. Try different keywords or browse a specific subreddit.")
+            st.warning(f"No posts found for '{keywords}'. Try different keywords.")
         else:
-          st.error("Search failed. Try browsing a specific subreddit instead.")
+          st.error("Search failed. Try selecting specific subreddits instead.")
       except Exception as e:
-        st.error(f"Search error: {str(e)}. Try browsing a specific subreddit instead.")
+        st.error(f"Search error: {str(e)}. Try selecting specific subreddits instead.")
     
-    elif not keywords and subreddit:
-      # Browse subreddit by category
-      st.info(f"🔍 Getting {category} posts from r/{subreddit}...")
+    elif not keywords and subreddits:
+      # Browse selected subreddits by category
+      st.info(f"🔍 Getting {category} posts from {len(subreddits)} selected subreddits...")
       
-      with st.spinner(f"Fetching {category} posts from r/{subreddit}..."):
-        posts = get_reddit_posts(subreddit, category, limit)
-        
-        if posts:
-          st.success(f"✅ Found {len(posts)} {category} posts from r/{subreddit}")
-          display_posts(posts, subreddit, api_key, creator_name)
-        else:
-          st.error(f"❌ Could not fetch posts from r/{subreddit}. Try a different subreddit.")
+      all_posts_found = False
+      
+      for subreddit in subreddits:
+        with st.spinner(f"Fetching {category} posts from r/{subreddit}..."):
+          posts = get_reddit_posts(subreddit, category, limit)
+          
+          if posts:
+            all_posts_found = True
+            st.subheader(f"{category.title()} posts from r/{subreddit}")
+            display_posts(posts, subreddit, api_key, creator_name)
+          else:
+            st.warning(f"❌ Could not fetch posts from r/{subreddit}")
+
+      if not all_posts_found:
+        st.error(f"❌ Could not fetch posts from any selected subreddits. Try different subreddits.")
+    
+    else:
+      st.warning("Please enter keywords or select subreddits to search")
 
   # Batch export section
   if 'analyzed_posts' in st.session_state and st.session_state.analyzed_posts:
@@ -3630,108 +3644,32 @@ elif platform == "Reddit Analysis":
         use_container_width=True
       )
 
-
-  # Two-column layout for intro/tips (keep existing)
+  # Popular Subreddits - Quick selection
   st.markdown("---")
-  st.markdown("""
-  <div class="two-column" style="margin-bottom: 3rem;">
-    <div>
-      <h2 style="font-size: 36px; font-weight: 800; text-transform: uppercase; margin-bottom: 1rem;">
-        Search <span style="color: #BCE5F7;">Tips</span>
-      </h2>
-      <p style="font-size: 20px; font-weight: 300; line-height: 1.6;">
-        Get the most out of Reddit analysis with these search strategies.
-      </p>
-    </div>
-    <div style="padding-left: 3rem;">
-      <div class="numbered-list">
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
-          <span style="font-size: 18px;">Use keywords + subreddit for targeted search</span>
-        </div>
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
-          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
-          <span style="font-size: 18px;">Browse subreddits to find trending topics</span>
-        </div>
-        <div style="display: flex; align-items: center;">
-          <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
-          <span style="font-size: 18px;">Search all Reddit for viral content</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  """, unsafe_allow_html=True)
-
-  # Conditional subreddit section
-  st.markdown("---")
-
-  # Check if creator has been updated
-  if hasattr(st.session_state, 'creator_updated') and st.session_state.creator_updated and hasattr(st.session_state, 'creator_subreddits'):
-      # Show relevant subreddits
-      st.markdown(f"### Relevant Subreddits for {creator_name}")
-      st.markdown(f"*AI-curated communities for {creator_name}'s content style*")
-      
-      relevant_subreddits = st.session_state.creator_subreddits
-      
-      # Display in 4 columns
-      cols = st.columns(4)
-      for i, subreddit in enumerate(relevant_subreddits):
-          col = cols[i % 4]
-          with col:
-              if st.button(f"🎯 r/{subreddit}", key=f"relevant_sub_{subreddit}_{i}"):
-                  # Update the subreddit input and trigger search
-                  st.session_state.should_search = True
-                  st.session_state.search_params = {
-                      'keywords': '',
-                      'subreddit': subreddit,
-                      'category': 'hot',
-                      'limit': 5
-                  }
-                  st.rerun()
-
-  else:
-      # Show default popular subreddits
-      st.markdown("### Popular Subreddits")
-      st.markdown("*Click any subreddit to quickly browse it*")
-      
-      popular_subreddits = [
-          ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("politics", "🗳️"), ("Conservative", "🇺🇸"),
-          ("news", "📰"), ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"),
-          ("television", "📺"), ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"),
-          ("funny", "😂"), ("todayilearned", "🧠"), ("science", "🔬"), ("relationships", "💕"),
-          ("food", "🍕"), ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"),
-          ("photography", "📸"), ("dataisbeautiful", "📊"), ("explainlikeimfive", "🧒"), ("lifehacks", "💡")
-      ]
-      
-      # Display in 4 columns
-      cols = st.columns(4)
-      for i, (subreddit, emoji) in enumerate(popular_subreddits):
-          col = cols[i % 4]
-          with col:
-              if st.button(f"{emoji} r/{subreddit}", key=f"pop_sub_{subreddit}_{i}"):
-                  # Update the subreddit input and trigger search
-                  st.session_state.should_search = True
-                  st.session_state.search_params = {
-                      'keywords': '',
-                      'subreddit': subreddit,
-                      'category': 'hot',
-                      'limit': 5
-                  }
-                  st.rerun()
+  st.markdown("### Popular Subreddits")
+  st.markdown("*Click any subreddit to quickly add it to your selection*")
   
-  # Add custom CSS to make button text smaller
-  st.markdown("""
-  <style>
-  /* Make subreddit button text smaller */
-  div[data-testid="column"] button p {
-    font-size: 12px !important;
-    line-height: 1.2 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-  </style>
-  """, unsafe_allow_html=True)
+  popular_subreddits = [
+    ("TrueCrime", "🔍"), ("AskReddit", "🤷"), ("politics", "🗳️"), ("Conservative", "🇺🇸"),
+    ("news", "📰"), ("worldnews", "🌍"), ("technology", "💻"), ("movies", "🎬"),
+    ("television", "📺"), ("music", "🎵"), ("gaming", "🎮"), ("sports", "⚽"),
+    ("funny", "😂"), ("todayilearned", "🧠"), ("science", "🔬"), ("relationships", "💕"),
+    ("food", "🍕"), ("fitness", "💪"), ("travel", "✈️"), ("books", "📚"),
+    ("photography", "📸"), ("dataisbeautiful", "📊"), ("explainlikeimfive", "🧒"), ("lifehacks", "💡")
+  ]
+  
+  # Display in 4 columns
+  cols = st.columns(4)
+  for i, (subreddit, emoji) in enumerate(popular_subreddits):
+    col = cols[i % 4]
+    with col:
+      if st.button(f"{emoji} r/{subreddit}", key=f"quick_sub_{subreddit}_{i}"):
+        # Add to current selection if not already there
+        current_selection = st.session_state.get('selected_subreddits', default_subreddits)
+        if subreddit not in current_selection:
+          current_selection.append(subreddit)
+          st.session_state.selected_subreddits = current_selection
+          st.rerun()
   
   # Two-column layout for intro/tips
   st.markdown("---")
@@ -3749,15 +3687,15 @@ elif platform == "Reddit Analysis":
       <div class="numbered-list">
         <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
           <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">01</span>
-          <span style="font-size: 18px;">Use keywords + subreddit for targeted search</span>
+          <span style="font-size: 18px;">Use keywords + subreddits for targeted search</span>
         </div>
         <div style="display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0;">
           <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">02</span>
-          <span style="font-size: 18px;">Browse subreddits to find trending topics</span>
+          <span style="font-size: 18px;">Click "Get Relevant Subreddits" for personalized suggestions</span>
         </div>
         <div style="display: flex; align-items: center;">
           <span style="font-size: 44px; font-weight: 800; color: #BCE5F7; margin-right: 1.5rem;">03</span>
-          <span style="font-size: 18px;">Search all Reddit for viral content</span>
+          <span style="font-size: 18px;">Select multiple subreddits for broader content discovery</span>
         </div>
       </div>
     </div>
@@ -3834,7 +3772,6 @@ elif platform == "Google Trends":
                 ]
                 st.session_state.google_trends = trends
                 st.info("Showing sample trending topics for demonstration")
-
 
 elif platform == "Saved Content":
   st.header("Saved Content")
