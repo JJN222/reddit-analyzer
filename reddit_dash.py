@@ -3431,23 +3431,57 @@ elif platform == "Reddit Analysis":
   col1, col2 = st.columns([2, 1])
         
   with col1:
-    # Keywords search input
-    search_keywords = st.text_input(
-      "SEARCH KEYWORDS (optional)", 
-      placeholder="e.g., 'trump speech', 'taylor swift', 'election news'", 
-      key="keywords_input",
-      help="Leave empty to browse subreddits without keyword filtering"
-    )
-    
-    # Multi-select subreddit input (using the options defined above)
-    selected_subreddits = st.multiselect(
-      "SUBREDDIT NAMES (optional)",
-      options=subreddit_options,
-      default=default_subreddits,
-      placeholder="Select subreddits to search",
-      help="Leave empty to search all of Reddit"
-    )
-  
+      # Keywords search input
+      search_keywords = st.text_input(
+        "SEARCH KEYWORDS (optional)", 
+        placeholder="e.g., 'trump speech', 'taylor swift', 'election news'", 
+        key="keywords_input",
+        help="Leave empty to browse subreddits without keyword filtering"
+      )
+      
+      # Multi-select subreddit input (using the options defined above)
+      selected_subreddits = st.multiselect(
+        "SUBREDDIT NAMES (optional)",
+        options=subreddit_options,
+        default=default_subreddits,
+        placeholder="Select subreddits to search",
+        help="Choose from popular subreddits or add custom ones below"
+      )
+      
+      # Custom subreddit input
+      custom_subreddit = st.text_input(
+        "ADD CUSTOM SUBREDDIT",
+        placeholder="e.g., cryptocurrency, wallstreetbets",
+        key="custom_subreddit_input",
+        help="Type any subreddit name and press Enter to add it"
+      )
+      
+      # Add custom subreddit to selection
+      if custom_subreddit:
+        # Clean the input (remove r/ if present)
+        clean_subreddit = custom_subreddit.replace("r/", "").strip()
+        
+        if clean_subreddit and clean_subreddit not in selected_subreddits:
+          # Add to current selection
+          updated_selection = selected_subreddits + [clean_subreddit]
+          
+          # Update session state to include the custom subreddit
+          st.session_state.custom_added = True
+          st.session_state.updated_subreddits = updated_selection
+          
+          # Show success message
+          st.success(f"✅ Added r/{clean_subreddit}")
+          
+          # Auto-rerun to update the multiselect
+          st.rerun()
+      
+      # Use updated selection if custom subreddit was added
+      if hasattr(st.session_state, 'custom_added') and st.session_state.custom_added:
+        final_subreddits = st.session_state.updated_subreddits
+        st.session_state.custom_added = False  # Reset flag
+      else:
+        final_subreddits = selected_subreddits
+
   with col2:
     # Post category selection
     post_category = st.selectbox(
