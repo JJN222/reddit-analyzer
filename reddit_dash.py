@@ -7,6 +7,16 @@ import openai
 import os
 import feedparser
 
+# New authentication imports
+import streamlit_authenticator as stauth
+import yaml
+from yaml.loader import SafeLoader
+import bcrypt
+import json
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import schedule
+
 # At the very top, after imports
 if "password_correct" not in st.session_state:
     st.session_state.password_correct = False
@@ -359,6 +369,170 @@ div[data-testid="column"] button p {
 </style>
 """, unsafe_allow_html=True)
 
+# ============ USER AUTHENTICATION FUNCTIONS ============
+
+def load_user_config():
+    """Load user configuration from file"""
+    config_file = 'users_config.yaml'
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as file:
+            return yaml.load(file, Loader=SafeLoader)
+    else:
+        # Create default config
+        return {
+            'credentials': {
+                'usernames': {}
+            },
+            'cookie': {
+                'name': 'content_dashboard_auth',
+                'key': 'content_dashboard_signature_key_12345',
+                'expiry_days': 30
+            },
+            'preauthorized': {
+                'emails': []
+            }
+        }
+
+def save_user_config(config):
+    """Save user configuration to file"""
+    with open('users_config.yaml', 'w') as file:
+        yaml.dump(config, file, default_flow_style=False)
+
+def load_user_data():
+    """Load all user data from file"""
+    data_file = 'user_data.json'
+    if os.path.exists(data_file):
+        with open(data_file, 'r') as file:
+            return json.load(file)
+    return {}
+
+def save_user_data_to_file(all_user_data):
+    """Save all user data to file"""
+    with open('user_data.json', 'w') as file:
+        json.dump(all_user_data, file, indent=2)
+
+def get_user_data(username):
+    """Get specific user's data"""
+    all_data = load_user_data()
+    return all_data.get(username, {
+        'creators': ['Default Creator'],
+        'saved_searches': [],
+        'saved_posts': [],
+        'saved_videos': [],
+        'api_keys': {},
+        'email_settings': {
+            'email': '',
+            'daily_digest': False,
+            'digest_time': '09:00'
+        },
+        'preferences': {
+            'default_creator': 'Default Creator',
+            'platforms': ['Reddit', 'YouTube']
+        }
+    })
+
+def save_user_data(username, user_data):
+    """Save specific user's data"""
+    all_data = load_user_data()
+    all_data[username] = user_data
+    save_user_data_to_file(all_data)
+
+def register_new_user(username, password, email, name):
+    """Register a new user"""
+    config = load_user_config()
+    
+    # Hash password
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    # Add to config
+    config['credentials']['usernames'][username] = {
+        'email': email,
+        'name': name,
+        'password': hashed_password
+    }
+    
+    # Save config
+    save_user_config(config)
+    
+    # Initialize user data
+    initial_data = {
+        'creators': [name],
+        'saved_searches': [],
+        'saved_posts': [],
+        'saved_videos': [],
+        'api_keys': {},
+        'email_settings': {
+            'email': email,
+            'daily_digest': False,
+            'digest_time': '09:00'
+        },
+        'preferences': {
+            'default_creator': name,
+            'platforms': ['Reddit', 'YouTube']
+        }
+    }
+    save_user_data(username, initial_data)
+    
+    return True
+
+# ============ AUTHENTICATION ============
+
+config = load_user_config()
+
+# Create authenticator
+authenticator = stauth.Authenticate(
+    config['credentials'],
+    config['cookie']['name'],
+    config['cookie']['key'],
+    config['cookie']['expiry_days']
+)
+
+# Login
+name, authentication_status, username = authenticator.login('Login', 'main')
+
+if authentication_status == False:
+    st.error('Username/password is incorrect')
+    st.stop()
+elif authentication_status == None:
+    # Show login page
+    st.title("Content Intelligence Dashboard")
+    st.markdown("### Welcome! Please login or create an account to access your personalized content dashboard.")
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col2:
+        st.subheader("Create New Account")
+        with st.form("registration_form"):
+            reg_name = st.text_input("Full Name")
+            reg_username = st.text_input("Username")
+            reg_email = st.text_input("Email")
+            reg_password = st.text_input("Password", type="password")
+            reg_confirm = st.text_input("Confirm Password", type="password")
+            
+            if st.form_submit_button("Create Account", use_container_width=True):
+                if not all([reg_name, reg_username, reg_email, reg_password]):
+                    st.error("Please fill all fields")
+                elif reg_password != reg_confirm:
+                    st.error("Passwords don't match")
+                elif reg_username in config['credentials']['usernames']:
+                    st.error("Username already exists")
+                else:
+                    try:
+                        register_new_user(reg_username, reg_password, reg_email, reg_name)
+                        st.success("Account created! Please login on the left.")
+                    except Exception as e:
+                        st.error(f"Registration failed: {str(e)}")
+    
+    st.stop()
+
+elif authentication_status:
+    # User is authenticated - load their data
+    user_data = get_user_data(username)
+    
+    # Add logout to sidebar
+    st.sidebar.success(f'Welcome {name}!')
+    authenticator.logout('Logout', 'sidebar')
+    st.sidebar.markdown("---")
 
 # ============ SIDEBAR CONFIGURATION ============
 
@@ -1997,116 +2171,6 @@ def get_itunes_podcast_episodes(podcast_id, limit=5):
     except:
         return []
   
-# ============ GOOGLE TRENDS FUNCTIONS ============
-
-def get_trending_searches(region='united_states'):
-    """Get current trending searches from Google Trends"""
-    try:
-        from pytrends.request import TrendReq
-        
-        # Initialize pytrends
-        pytrends = TrendReq(hl='en-US', tz=360)
-        
-        # Get trending searches
-        trending_df = pytrends.trending_searches(pn=region)
-        
-        # Convert to list
-        if trending_df is not None and not trending_df.empty:
-            trending_searches = trending_df[0].tolist()[:20]
-            return trending_searches
-        else:
-            return None
-            
-    except Exception as e:
-        st.error(f"❌ Google Trends API Error: {str(e)}")
-        return None
-        
-def get_related_queries(keyword, region='US'):
-    """Get related queries for a specific trend"""
-    try:
-        from pytrends.request import TrendReq
-        
-        pytrends = TrendReq(hl='en-US', tz=360)
-        
-        # Build payload
-        pytrends.build_payload([keyword], timeframe='now 7-d', geo=region)
-        
-        # Get related queries
-        related_queries = pytrends.related_queries()
-        
-        # Extract top and rising queries
-        related_data = {
-            'top': [],
-            'rising': []
-        }
-        
-        if keyword in related_queries:
-            if related_queries[keyword]['top'] is not None:
-                related_data['top'] = related_queries[keyword]['top']['query'].tolist()[:10]
-            if related_queries[keyword]['rising'] is not None:
-                related_data['rising'] = related_queries[keyword]['rising']['query'].tolist()[:10]
-        
-        return related_data
-    except Exception as e:
-        st.error(f"❌ Could not fetch related queries: {str(e)}")
-        return {'top': [], 'rising': []}
-        
-def analyze_trend_for_creator(trend, related_queries, creator_name, api_key):
-    """Analyze how a creator should cover a trending topic"""
-    if not api_key:
-        return None
-    
-    import openai
-    openai.api_key = api_key
-    
-    # Prepare context
-    context = f"Trending Topic: {trend}\n"
-    if related_queries['top']:
-        context += f"Top Related Searches: {', '.join(related_queries['top'][:5])}\n"
-    if related_queries['rising']:
-        context += f"Rising Related Searches: {', '.join(related_queries['rising'][:5])}\n"
-    
-    prompt = f"""Analyze this Google Trend for {creator_name}'s content strategy:
-
-{context}
-
-Provide a comprehensive content strategy for {creator_name}:
-
-📊 TREND SUMMARY: What this trend is about and why it's popular right now (2-3 sentences)
-
-🎯 {creator_name.upper()} ANGLE: How {creator_name} should approach this topic based on their personality and audience
-
-📹 VIDEO CONCEPTS: 3 specific video ideas with titles that {creator_name} could create:
-- Title 1: [Specific title]
-- Title 2: [Specific title]  
-- Title 3: [Specific title]
-
-🔥 HOT TAKE: {creator_name}'s unique, provocative perspective on this trend
-
-📱 SOCIAL MEDIA STRATEGY: How to leverage this trend across platforms:
-- YouTube Shorts idea
-- TikTok approach
-- Instagram Reels concept
-- Twitter/X thread idea
-
-⏰ TIMING: How urgent is this trend? When should {creator_name} publish content?
-
-🎪 CONTENT FORMAT: Best format for {creator_name} (reaction, analysis, story-time, investigation, etc.)
-
-#️⃣ HASHTAGS: Relevant hashtags for maximum reach
-
-💡 UNIQUE SPIN: What {creator_name} could do differently than everyone else covering this trend"""
-    
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4.1-nano",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=800,
-            timeout=30
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"AI Analysis Error: {str(e)}"
     
 # ============ TMDB API FUNCTIONS ============
 
