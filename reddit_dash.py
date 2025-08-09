@@ -529,6 +529,61 @@ HEADERS = {
   'Accept': 'application/json',
 }
 
+# ============ CHATBOT FUNCTIONS ============
+
+def chatbot_with_context(user_question, creator_name, api_key, current_platform, context_data=None):
+    """AI chatbot that references current page content"""
+    if not api_key:
+        return "Please configure your OpenAI API key"
+    
+    # Build context from current page
+    context_text = ""
+    
+    if current_platform == "Reddit Analysis" and context_data:
+        context_text = "\n\nCurrent Reddit Results:\n"
+        for i, post in enumerate(context_data[:5], 1):  # Top 5 posts
+            context_text += f"{i}. \"{post.get('title', 'No title')}\" ({post.get('score', 0)} upvotes, {post.get('num_comments', 0)} comments)\n"
+            if post.get('selftext'):
+                context_text += f"   Content: {post['selftext'][:150]}...\n"
+    
+    elif current_platform == "YouTube Intelligence" and context_data:
+        context_text = "\n\nCurrent YouTube Results:\n"
+        for i, video in enumerate(context_data[:5], 1):  # Top 5 videos
+            context_text += f"{i}. \"{video.get('title', 'No title')}\" by {video.get('channel', 'Unknown')} ({video.get('views', 'N/A')})\n"
+            if video.get('description'):
+                context_text += f"   Description: {video['description'][:150]}...\n"
+    
+    prompt = f"""You are a content strategy assistant for {creator_name}. Answer the user's question using both your knowledge and the current search results they're viewing.
+
+User Question: {user_question}
+
+{context_text}
+
+Instructions:
+- Reference the specific posts/videos shown above when relevant
+- Compare and analyze multiple items from the results
+- Suggest which content {creator_name} should prioritize
+- Identify patterns and themes across the results
+- Provide actionable content strategy advice
+- Be specific about which posts/videos you're referencing (use numbers)
+
+Response:"""
+
+    try:
+        import openai
+        openai.api_key = api_key
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=600,
+            timeout=30
+        )
+        
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error: {str(e)}"
+
 # ============ REDDIT FUNCTIONS ============
 
 def save_post(post_data, analysis, creator_name, subreddit):
@@ -766,6 +821,9 @@ def generate_hashtags(title, subreddit, creator_name):
 
 def display_posts(posts, subreddit, api_key=None, creator_name="Bailey Sarian"):
   """Display posts with analysis"""
+  # Store posts for AI assistant (add this after posts are displayed)
+  if posts:
+    st.session_state.reddit_posts = posts
   if not posts:
     st.warning("⚠️ No posts found. Try a different subreddit.")
     return
@@ -4472,6 +4530,55 @@ elif platform == "Reddit Analysis":
     </div>
   </div>
   """, unsafe_allow_html=True)
+
+# AI Assistant for current results
+if st.session_state.get('reddit_posts'):
+    st.markdown("---")
+    st.subheader("🤖 AI Assistant")
+    st.info("💡 Ask questions about the Reddit results above")
+    
+    # Initialize chat for Reddit
+    if 'chat_reddit' not in st.session_state:
+        st.session_state.chat_reddit = []
+    
+    # Display chat history
+    for message in st.session_state.chat_reddit:
+        if message['role'] == 'user':
+            st.markdown(f"**You:** {message['content']}")
+        else:
+            st.markdown(f"**🤖 Assistant:** {message['content']}")
+    
+    # User input
+    user_question = st.text_input(
+        "Ask about these Reddit results:", 
+        placeholder="e.g., 'Which post should I make a video about?' or 'What themes do you see?'",
+        key="chat_input_reddit"
+    )
+    
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("Send", type="primary", key="send_reddit") and user_question:
+            # Add user message
+            st.session_state.chat_reddit.append({"role": "user", "content": user_question})
+            
+            # Get AI response with context
+            with st.spinner("🤖 Analyzing Reddit results..."):
+                response = chatbot_with_context(
+                    user_question, 
+                    creator_name, 
+                    api_key, 
+                    "Reddit Analysis",
+                    st.session_state.get('reddit_posts', [])
+                )
+            
+            # Add AI response
+            st.session_state.chat_reddit.append({"role": "assistant", "content": response})
+            st.rerun()
+    
+    with col2:
+        if st.button("Clear Chat", key="clear_reddit"):
+            st.session_state.chat_reddit = []
+            st.rerun()
 
 elif platform == "Google Trends":
     # Hero-style header
