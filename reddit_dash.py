@@ -4531,55 +4531,45 @@ elif platform == "Reddit Analysis":
   </div>
   """, unsafe_allow_html=True)
 
-# AI Assistant for current results
+# Floating AI Assistant in sidebar
 if st.session_state.get('reddit_posts'):
-    st.markdown("---")
-    st.subheader("🤖 AI Assistant")
-    st.info("💡 Ask questions about the Reddit results above")
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🤖 AI Assistant")
+    st.sidebar.info("Ask about current Reddit results")
     
-    # Initialize chat for Reddit
-    if 'chat_reddit' not in st.session_state:
-        st.session_state.chat_reddit = []
+    # Initialize chat
+    if 'floating_chat_reddit' not in st.session_state:
+        st.session_state.floating_chat_reddit = []
     
-    # Display chat history
-    for message in st.session_state.chat_reddit:
-        if message['role'] == 'user':
-            st.markdown(f"**You:** {message['content']}")
-        else:
-            st.markdown(f"**🤖 Assistant:** {message['content']}")
+    # Display last few messages
+    if st.session_state.floating_chat_reddit:
+        for message in st.session_state.floating_chat_reddit[-3:]:  # Last 3 messages
+            if message['role'] == 'user':
+                st.sidebar.markdown(f"**You:** {message['content'][:50]}...")
+            else:
+                st.sidebar.markdown(f"**🤖:** {message['content'][:50]}...")
     
-    # User input
-    user_question = st.text_input(
-        "Ask about these Reddit results:", 
-        placeholder="e.g., 'Which post should I make a video about?' or 'What themes do you see?'",
-        key="chat_input_reddit"
-    )
-    
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        if st.button("Send", type="primary", key="send_reddit") and user_question:
+    # Chat input in sidebar
+    with st.sidebar.form("sidebar_chat"):
+        chat_input = st.text_input("Ask about Reddit results:", key="sidebar_chat_input")
+        if st.form_submit_button("Send") and chat_input:
             # Add user message
-            st.session_state.chat_reddit.append({"role": "user", "content": user_question})
+            st.session_state.floating_chat_reddit.append({"role": "user", "content": chat_input})
             
-            # Get AI response with context
-            with st.spinner("🤖 Analyzing Reddit results..."):
-                response = chatbot_with_context(
-                    user_question, 
-                    creator_name, 
-                    api_key, 
-                    "Reddit Analysis",
-                    st.session_state.get('reddit_posts', [])
-                )
+            # Get AI response
+            response = chatbot_with_context(
+                chat_input, 
+                creator_name, 
+                api_key, 
+                "Reddit Analysis",
+                st.session_state.get('reddit_posts', [])
+            )
             
             # Add AI response
-            st.session_state.chat_reddit.append({"role": "assistant", "content": response})
-            st.rerun()
-    
-    with col2:
-        if st.button("Clear Chat", key="clear_reddit"):
-            st.session_state.chat_reddit = []
+            st.session_state.floating_chat_reddit.append({"role": "assistant", "content": response})
             st.rerun()
 
+            
 elif platform == "Google Trends":
     # Hero-style header
     st.markdown("""
