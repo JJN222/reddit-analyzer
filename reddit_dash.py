@@ -3048,7 +3048,6 @@ if platform == "YouTube Intelligence":
     
     with tab1:
         # Clean search inputs with better spacing
-        st.markdown('<div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">', unsafe_allow_html=True)
         
         col1, col2 = st.columns([3, 1])
         with col1:
