@@ -591,8 +591,6 @@ def get_reddit_posts(subreddit, category="hot", limit=5):
   
   return []
 
-
-
 def get_top_comments(subreddit, post_id, limit=3):
   """Get top comments for a specific post"""
   url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json"
@@ -1188,10 +1186,11 @@ def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week",
               video_data_item = {
                 'title': snippet.get('title', 'No title'),
                 'channel': snippet.get('channelTitle', 'Unknown Channel'),
-                'published': snippet.get('publishedAt', 'Unknown'),
+                'published': format_youtube_date(snippet.get('publishedAt', 'Unknown')),
                 'video_id': item.get('id', {}).get('videoId', ''),
                 'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
-                'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                'views': get_video_views(item.get('id', {}).get('videoId', ''), api_key)
               }
               search_results.append(video_data_item)
             
@@ -1232,10 +1231,11 @@ def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week",
           video_data = {
             'title': snippet.get('title', 'No title'),
             'channel': snippet.get('channelTitle', 'Unknown Channel'),
-            'published': snippet.get('publishedAt', 'Unknown'),
+            'published': format_youtube_date(snippet.get('publishedAt', 'Unknown')),
             'video_id': item.get('id', {}).get('videoId', ''),
             'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
-            'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+            'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+            'views': get_video_views(item.get('id', {}).get('videoId', ''), api_key)
           }
           search_results.append(video_data)
         
@@ -2488,13 +2488,14 @@ def search_youtube_by_channel(channel_name, api_key=None, max_results=5):
                     for item in videos_data.get('items', []):
                         snippet = item.get('snippet', {})
                         video_data = {
-                            'title': snippet.get('title', 'No title'),
-                            'published': snippet.get('publishedAt', 'Unknown'),
-                            'video_id': item.get('id', {}).get('videoId', ''),
-                            'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
-                            'channel': snippet.get('channelTitle', channel_name),
-                            'views': 'N/A'  # Would need additional API call to get view count
-                        }
+                          'title': snippet.get('title', 'No title'),
+                          'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                          'views': get_video_views(item.get('id', ''), api_key),
+                          'published': format_youtube_date(snippet.get('publishedAt', 'Unknown')),
+                          'video_id': item.get('id', ''),
+                          'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                          'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                        }                        
                         channel_videos.append(video_data)
                     
                     return channel_videos
@@ -2641,13 +2642,14 @@ def get_relevant_channels_for_creator(creator_name, api_key):
                     for item in videos_data.get('items', []):
                         snippet = item.get('snippet', {})
                         video_data = {
-                            'title': snippet.get('title', 'No title'),
-                            'published': snippet.get('publishedAt', 'Unknown'),
-                            'video_id': item.get('id', {}).get('videoId', ''),
-                            'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
-                            'channel': snippet.get('channelTitle', channel_name),
-                            'views': 'N/A'  # Would need additional API call to get view count
-                        }
+                          'title': snippet.get('title', 'No title'),
+                          'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                          'views': get_video_views(item.get('id', ''), api_key),
+                          'published': format_youtube_date(snippet.get('publishedAt', 'Unknown')),
+                          'video_id': item.get('id', ''),
+                          'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                          'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
+                        }   
                         channel_videos.append(video_data)
                     
                     return channel_videos
@@ -3130,16 +3132,16 @@ if platform == "YouTube Intelligence":
                                             
                                             video_id = item.get('id', {}).get('videoId', '')
                                             
-                                            video_data_item = {
-                                                'title': snippet.get('title', 'No title'),
-                                                'channel': snippet.get('channelTitle', 'Unknown Channel'),
-                                                'published': formatted_date,
-                                                'video_id': video_id,
-                                                'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
-                                                'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                                                'views': get_video_views(video_id, youtube_api_key)
+                                            video_data = {
+                                              'title': snippet.get('title', 'No title'),
+                                              'channel': snippet.get('channelTitle', 'Unknown Channel'),
+                                              'views': get_video_views(item.get('id', ''), api_key),
+                                              'published': format_youtube_date(snippet.get('publishedAt', 'Unknown')),
+                                              'video_id': item.get('id', ''),
+                                              'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
+                                              'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
                                             }
-                                            search_results.append(video_data_item)
+                                            search_results.append(video_data)
                         except Exception as e:
                             st.warning(f"⚠️ Search failed for {channel_name}: {str(e)[:30]}...")
                     
