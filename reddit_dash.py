@@ -1254,6 +1254,25 @@ def search_youtube_videos(query, api_key=None, max_results=10, timeframe="week",
     st.warning(f"⚠️ YouTube search temporarily unavailable: {str(e)[:50]}... Using sample data.")
     return search_youtube_videos(query, timeframe=timeframe, search_type=search_type)
 
+def extract_view_count_for_sorting(views_string):
+    """Extract numeric view count from formatted string for sorting"""
+    if not views_string or views_string == "N/A":
+        return 0
+    
+    try:
+        # Remove "views" and any commas
+        clean_views = views_string.replace(" views", "").replace(",", "")
+        
+        # Handle M and K suffixes
+        if "M" in clean_views:
+            return int(float(clean_views.replace("M", "")) * 1000000)
+        elif "K" in clean_views:
+            return int(float(clean_views.replace("K", "")) * 1000)
+        else:
+            return int(clean_views)
+    except:
+        return 0
+
 def get_youtube_comments(video_id, api_key=None, max_results=20):
   """Get comments from a YouTube video"""
   if not api_key:
@@ -3124,6 +3143,7 @@ if platform == "YouTube Intelligence":
                 
                 # Sort by view count (highest first)
                 unique_results.sort(key=lambda x: extract_view_count_for_sorting(x.get('views', 'N/A')), reverse=True)
+
                 
                 st.session_state.youtube_search_results = unique_results
                 st.success(f"✅ Found {len(unique_results)} unique videos (sorted by views)")
@@ -3415,7 +3435,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 
                         if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                                                        
+
 elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret, _ = get_api_keys()
