@@ -555,9 +555,9 @@ def save_post(post_data, analysis, creator_name, subreddit):
 def get_reddit_posts(subreddit, category="hot", limit=5):
   """Get posts from specified subreddit and category"""
   urls_to_try = [
-    f"https://www.reddit.com/r/{subreddit}/{category}.json?limit={limit}",  # Add ?limit={limit}
-    f"https://old.reddit.com/r/{subreddit}/{category}.json?limit={limit}",  # Add ?limit={limit}
-    f"https://np.reddit.com/r/{subreddit}/{category}.json?limit={limit}",   # Add ?limit={limit}
+    f"https://www.reddit.com/r/{subreddit}/{category}.json",  # Removed ?limit from URL
+    f"https://old.reddit.com/r/{subreddit}/{category}.json",
+    f"https://np.reddit.com/r/{subreddit}/{category}.json",
   ]
   
   headers_variants = [
@@ -581,7 +581,7 @@ def get_reddit_posts(subreddit, category="hot", limit=5):
         if response.status_code == 200:
           data = response.json()
           if 'data' in data and 'children' in data['data'] and data['data']['children']:
-            return data['data']['children']
+            return data['data']['children'][:limit]  # Force slice to limit
         elif response.status_code == 429:
           time.sleep(5)
           continue
@@ -4199,7 +4199,7 @@ elif platform == "Reddit Analysis":
       if all_posts:
         # Sort by score and limit results
         all_posts.sort(key=lambda x: x['data']['score'], reverse=True)
-        limited_posts = all_posts[:limit * len(subreddits)]
+        limited_posts = all_posts[:limit]
         
         st.success(f"✅ Found {len(limited_posts)} posts containing '{keywords}' in selected subreddits")
         
