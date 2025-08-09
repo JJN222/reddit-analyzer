@@ -3415,7 +3415,7 @@ ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
 
                         if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
                             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                            
+                                                        
 elif platform == "Podcast Trends":
     # Get Spotify credentials
     _, _, spotify_client_id, spotify_client_secret, _ = get_api_keys()
