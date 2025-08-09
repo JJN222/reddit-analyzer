@@ -1272,6 +1272,54 @@ def extract_view_count_for_sorting(views_string):
             return int(clean_views)
     except:
         return 0
+    
+def get_video_views(video_id, api_key):
+    """Get view count for a specific video"""
+    if not api_key or not video_id or video_id.startswith('sample'):
+        return "N/A"
+    
+    try:
+        url = "https://www.googleapis.com/youtube/v3/videos"
+        params = {
+            'part': 'statistics',
+            'id': video_id,
+            'key': api_key
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('items') and len(data['items']) > 0:
+                stats = data['items'][0].get('statistics', {})
+                view_count = stats.get('viewCount')
+                if view_count:
+                    views = int(view_count)
+                    if views >= 1000000:
+                        return f"{views/1000000:.1f}M views"
+                    elif views >= 1000:
+                        return f"{views/1000:.0f}K views"
+                    else:
+                        return f"{views:,} views"
+        return "N/A"
+    except:
+        return "N/A"
+
+def format_youtube_date(date_string):
+    """Convert YouTube API date to MM/DD/YY format"""
+    if not date_string or date_string in ['Unknown', 'N/A']:
+        return date_string
+    
+    try:
+        from datetime import datetime
+        if 'T' in date_string:
+            clean_date = date_string.replace('Z', '').split('T')[0]
+            dt = datetime.strptime(clean_date, '%Y-%m-%d')
+        else:
+            dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        return dt.strftime('%m/%d/%y')
+    except:
+        return date_string
 
 def get_youtube_comments(video_id, api_key=None, max_results=20):
   """Get comments from a YouTube video"""
@@ -1368,8 +1416,8 @@ def get_video_by_id(video_id, api_key=None):
         return {
           'title': snippet.get('title', 'No title'),
           'channel': snippet.get('channelTitle', 'Unknown Channel'),
-          'views': f"{int(stats.get('viewCount', 0)):,} views" if stats.get('viewCount') else 'No views',
-          'published': snippet.get('publishedAt', 'Unknown'),
+          'published': format_youtube_date(snippet.get('publishedAt', 'Unknown')),
+          'views': get_video_views(item.get('id', ''), youtube_api_key),
           'video_id': video_id,
           'description': snippet.get('description', '')[:200] + '...' if snippet.get('description') else '',
           'thumbnail': snippet.get('thumbnails', {}).get('medium', {}).get('url', '')
