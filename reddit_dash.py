@@ -1425,6 +1425,49 @@ def get_video_by_id(video_id, api_key=None):
   except:
     return None
 
+def analyze_video_for_creator_auto(video, comments, creator_name, api_key):
+    """Auto-analyze video + comments for creator - Reddit style"""
+    if not api_key:
+        return None
+    
+    # Prepare comment text
+    comment_text = ""
+    if comments:
+        top_comments = []
+        for comment in comments[:5]:  # Top 5 comments
+            top_comments.append(f"• {comment['author']}: {comment['text'][:100]}...")
+        comment_text = "\n".join(top_comments)
+    
+    prompt = f"""Analyze this YouTube video for {creator_name}:
+
+Video: "{video['title']}" by {video['channel']} ({video.get('views', 'N/A')})
+
+Top Comments:
+{comment_text}
+
+Brief analysis for {creator_name}:
+
+REACTION ANGLE: How {creator_name} should approach this
+KEY POINTS: 2-3 main points to address
+AUDIENCE SENTIMENT: What viewers are saying
+CONTENT IDEA: Specific video concept for {creator_name}
+
+Keep concise and actionable."""
+
+    try:
+        import openai
+        openai.api_key = api_key
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=400,
+            timeout=30
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI Analysis Error: {str(e)}"
+
 def analyze_video_comments_with_ai(comments, video_title, creator_name, api_key):
   """Analyze YouTube video comments for creator insights"""
   if not api_key:
@@ -3217,138 +3260,64 @@ if platform == "YouTube Intelligence":
                     st.session_state[expanded_key] = True
 
                 with st.expander(
-                    f"{i:02d} | {video['title'][:45]}{'...' if len(video['title']) > 45 else ''} | {video['channel']}", 
-                    expanded=st.session_state[expanded_key]
-                ):
-                    # Add clean metric display
-                    st.markdown(f"""
-                    <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
-                        <div>
-                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
-                        <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
-                        </div>
-                        <div>
-                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
-                        <p style="font-size: 20px; font-weight: 600;">{video.get('views', 'N/A')}</p>
-                        </div>
-                        <div>
-                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
-                        <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Add description and thumbnail after metrics
-                    if video.get('description'):
-                        st.write(f"**Description:** {video['description']}")
-
-                    if video.get('thumbnail'):
-                        st.image(video['thumbnail'], width=200)
-                    
-                    
-                    if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
-                        st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                    
-                    # Action buttons
-                    col_a, col_b = st.columns(2)
-                    
-                    with col_a:
-                        # Creator reaction analysis for individual videos
-                        if api_key:
-                            if st.button(f"{creator_name} Reaction Ideas", key=f"analyze_video_{i}"):
-                                with st.spinner(f"🤖 Analyzing reaction opportunities for {creator_name}..."):
-                                    reaction_prompt = f"""Analyze this YouTube video for {creator_name}'s reaction content:
-
-Title: {video['title']}
-Channel: {video['channel']}
-Description: {video.get('description', 'No description')}
-
-Provide {creator_name}'s reaction strategy:
-
-REACTION VIDEO TITLE: Catchy title for {creator_name}'s reaction video
-{creator_name.upper()} ANGLE: How {creator_name} would uniquely react based on their personality/brand
-HOT TAKES: 3 specific points {creator_name} would likely make during the reaction
-OPENING HOOK: How {creator_name} should start the reaction to grab attention
-BEST MOMENTS: Which parts of the original video to focus on for maximum impact
-SOCIAL CLIPS: 2-3 short clips perfect for TikTok/Instagram from the reaction
-ENGAGEMENT STRATEGY: How to get viewers commenting and sharing"""
+                                    f"{i:02d} | {video['title'][:45]}{'...' if len(video['title']) > 45 else ''} | {video['channel']}", 
+                                    expanded=st.session_state[expanded_key]
+                                ):
+                                    # Add clean metric display
+                                    st.markdown(f"""
+                                    <div style="display: flex; gap: 3rem; margin-bottom: 2rem;">
+                                        <div>
+                                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Channel</p>
+                                        <p style="font-size: 20px; font-weight: 600;">{video['channel']}</p>
+                                        </div>
+                                        <div>
+                                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Views</p>
+                                        <p style="font-size: 20px; font-weight: 600;">{video.get('views', 'N/A')}</p>
+                                        </div>
+                                        <div>
+                                        <p style="font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 0.5rem;">Published</p>
+                                        <p style="font-size: 20px; font-weight: 600;">{video['published']}</p>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
                                     
-                                    try:
-                                        import openai
-                                        openai.api_key = api_key
-                                        
-                                        response = openai.ChatCompletion.create(
-                                            model="gpt-3.5-turbo",
-                                            messages=[{"role": "user", "content": reaction_prompt}],
-                                            max_tokens=700,
-                                            timeout=30
-                                        )
-                                        
-                                        # Store analysis in session state
-                                        analysis_key = f"reaction_analysis_{i}"
-                                        st.session_state[analysis_key] = response.choices[0].message.content
-                                        
-                                    except Exception as e:
-                                        st.session_state[f"reaction_analysis_{i}"] = f"AI Analysis Error: {str(e)}"
-                        else:
-                            st.info("⚠️ AI analysis unavailable - configure OpenAI API key")
-                    
-                    with col_b:
-                        # Comment analysis
-                        if api_key and video.get('video_id'):
-                            if st.button(f"Analyze Comments", key=f"comments_{i}"):
-                                with st.spinner(f"🤖 Analyzing comments for {creator_name}..."):
-                                    comments = get_youtube_comments(video['video_id'], youtube_api_key)
+                                    # Add description and thumbnail
+                                    if video.get('description'):
+                                        st.write(f"**Description:** {video['description']}")
+
+                                    if video.get('thumbnail'):
+                                        st.image(video['thumbnail'], width=200)
                                     
-                                    if comments:
-                                        # Store comments in session state
-                                        st.session_state[f"comments_data_{i}"] = comments
-                                        
-                                        # AI analysis of comments
-                                        comment_analysis = analyze_video_comments_with_ai(comments, video['title'], creator_name, api_key)
-                                        st.session_state[f"comment_analysis_{i}"] = comment_analysis
+                                    if video.get('video_id') and youtube_api_key and not video['video_id'].startswith('sample'):
+                                        st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                                    
+                                    # Automatic comment fetching and AI analysis (like Reddit)
+                                    if api_key and creator_name:
+                                        with st.spinner(f"🤖 Analyzing video and comments for {creator_name}..."):
+                                            # Fetch comments automatically
+                                            comments = get_youtube_comments(video.get('video_id', ''), youtube_api_key)
+                                            
+                                            # Auto-analyze video + comments
+                                            analysis = analyze_video_for_creator_auto(video, comments, creator_name, api_key)
+                                            
+                                            if analysis and not analysis.startswith("AI Analysis Error"):
+                                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
+                                                st.markdown(f"### 🤖 AI Analysis for {creator_name}")
+                                                
+                                                # Show top comments first (like Reddit)
+                                                if comments:
+                                                    st.write("**Top Comments:**")
+                                                    for j, comment in enumerate(comments[:3], 1):
+                                                        st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
+                                                    st.write("---")
+                                                
+                                                # Show AI analysis
+                                                st.write(analysis)
+                                                st.markdown('</div>', unsafe_allow_html=True)
+                                            elif analysis:
+                                                st.error(analysis)
                                     else:
-                                        st.session_state[f"comment_analysis_{i}"] = "No comments available for analysis"
-                        else:
-                            st.info("⚠️ Comment analysis unavailable - configure API keys")
-                    
-                    # Display stored reaction analysis
-                    if f"reaction_analysis_{i}" in st.session_state:
-                        st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                        st.markdown("""
-                        <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-                        AI Analysis <span style="color: #BCE5F7;">Results</span>
-                        </h3>
-                        """, unsafe_allow_html=True)
-                        st.markdown(f"### {creator_name} Reaction Strategy")
-                        st.write(st.session_state[f"reaction_analysis_{i}"])
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    # Display stored comment analysis
-                    if f"comment_analysis_{i}" in st.session_state:
-                        analysis = st.session_state[f"comment_analysis_{i}"]
-                        
-                        if f"comments_data_{i}" in st.session_state:
-                            comments = st.session_state[f"comments_data_{i}"]
-                            st.write("**Top Comments:**")
-                            if isinstance(comments, list) and comments:
-                                for j, comment in enumerate(comments[:5], 1):
-                                    st.write(f"{j}. **{comment['author']}** ({comment['likes']} ❤️): {comment['text'][:100]}...")
-                            else:
-                                st.write("No comments available to display")
-                        
-                        if analysis and not analysis.startswith("Comment Analysis Error"):
-                            st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                            st.markdown("""
-                            <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-                            AI Analysis <span style="color: #BCE5F7;">Results</span>
-                            </h3>
-                            """, unsafe_allow_html=True)
-                            st.markdown(f"### Comment Analysis for {creator_name}")
-                            st.write(analysis)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                        elif analysis:
-                            st.error(analysis)
+                                        st.info("💡 Enter creator name and OpenAI API key for automatic AI analysis")
 
         # Two-column intro
         st.markdown("""
