@@ -3148,7 +3148,7 @@ if platform == "YouTube Intelligence":
                     st.session_state[expanded_key] = True
 
                 with st.expander(
-                                    f"{i:02d} | {video['title'][:45]}{'...' if len(video['title']) > 45 else ''} | {video['channel']}", 
+                                    f"{i:02d} | {video['title'][:45]}{'...' if len(video['title']) > 45 else ''} | {video.get('channel', 'Unknown Channel')}", 
                                     expanded=st.session_state[expanded_key]
                                 ):
                                     # Add clean metric display
