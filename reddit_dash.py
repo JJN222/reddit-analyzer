@@ -3482,12 +3482,22 @@ elif platform == "Podcast Trends":
     with tabs[1]:
         st.markdown("### 🔍 Search Podcasts by Topic")
         
-        # Topic search
-        search_topic = st.text_input(
-            "Enter topic or current event",
-            placeholder="e.g., 'Taylor Swift', 'Presidential Election', 'AI Technology'",
-            key="topic_search"
-        )
+        # Topic search with sort option
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            search_topic = st.text_input(
+                "Enter topic or current event",
+                placeholder="e.g., 'Taylor Swift', 'Presidential Election', 'AI Technology'",
+                key="topic_search"
+            )
+        
+        with col2:
+            sort_option = st.selectbox(
+                "Sort by",
+                ["Relevance", "Newest First", "Oldest First"],
+                key="podcast_sort"
+            )
         
         if st.button("Search Episodes", key="search_topic_btn", type="primary") and search_topic:
             st.session_state.podcast_active_tab = 1
@@ -3495,9 +3505,16 @@ elif platform == "Podcast Trends":
                 with st.spinner(f"Searching for episodes about '{search_topic}'..."):
                     episodes = search_podcasts_by_topic(st.session_state.spotify_token, search_topic)
                     if episodes:
+                        # Sort based on selection
+                        if sort_option == "Newest First":
+                            episodes.sort(key=lambda x: x.get('release_date', ''), reverse=True)
+                        elif sort_option == "Oldest First":
+                            episodes.sort(key=lambda x: x.get('release_date', ''))
+                        # If "Relevance" is selected, keep Spotify's default order
+                        
                         st.session_state.topic_results = episodes
-                        st.success(f"✅ Found {len(episodes)} episodes about '{search_topic}'")
-        
+                        st.success(f"✅ Found {len(episodes)} episodes about '{search_topic}' (sorted by {sort_option})")
+
         # Display topic results
         if 'topic_results' in st.session_state:
             for i, ep in enumerate(st.session_state.topic_results, 1):
@@ -3959,30 +3976,6 @@ elif platform == "Movie & TV Trends":
                                 st.write(analysis)
                                 st.markdown('</div>', unsafe_allow_html=True)
                         
-                    # AI Analysis (same as before)
-                    if api_key and st.button(f"🤖 {creator_name} Content Strategy", key=f"analyze_company_{i}"):
-                        with st.spinner(f"Analyzing for {creator_name}..."):
-                            media_type_display = "movie" if 'title' in item else "TV show"
-                            analysis = analyze_movie_tv_trend(
-                                title,
-                                item.get('overview', ''),
-                                item.get('popularity', 0),
-                                item.get('vote_average', 0),
-                                media_type_display,
-                                genre_names,
-                                creator_name,
-                                api_key
-                            )
-                            
-                            if analysis:
-                                st.markdown('<div class="ai-analysis">', unsafe_allow_html=True)
-                                st.markdown("""
-                                <h3 style="font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">
-                                    AI Analysis <span style="color: #BCE5F7;">Results</span>
-                                </h3>
-                                """, unsafe_allow_html=True)
-                                st.write(analysis)
-                                st.markdown('</div>', unsafe_allow_html=True)
 
 elif platform == "Reddit Analysis":
   # Hero-style header
@@ -4019,7 +4012,7 @@ elif platform == "Reddit Analysis":
       
       # Filter suggested subreddits to only valid ones
       valid_defaults = [sub for sub in suggested_subreddits if sub in subreddit_options]
-      default_subreddits = valid_defaults if valid_defaults else ["TrueCrime"]
+      default_subreddits = valid_defaults if valid_defaults else ["UnresolvedMysteries"]
   else:
       # Base subreddit options
       subreddit_options = [
@@ -4029,7 +4022,7 @@ elif platform == "Reddit Analysis":
         "travel", "books", "photography", "MakeupAddiction", "beauty", "serialkillers",
         "UnresolvedMysteries", "nosleep", "LetsNotMeet", "creepy", "entertainment"
       ]
-      default_subreddits = ["TrueCrime"]
+      default_subreddits = ["UnresolvedMysteries"]
 
   # Clean main search section
   st.markdown('<h3 style="font-size: 18px; font-weight: 700; text-transform: uppercase; margin-bottom: 1.5rem; color: #221F1F; margin-top: 2rem;">SEARCH REDDIT</h3>', unsafe_allow_html=True)
