@@ -3766,11 +3766,6 @@ elif platform == "Movie & TV Trends":
                 
                 results = search_tmdb(tmdb_key, media_type=media_type, genre_id=genre_ids, 
                                     year=year, sort_by=sort_by)
-
-
-                
-                results = search_tmdb(tmdb_key, media_type=media_type, genre_id=genre_id, 
-                                    year=year, sort_by=sort_by)
                 
                 if results and results.get('results'):
                     st.session_state.trending_results = results['results']
