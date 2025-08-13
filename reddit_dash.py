@@ -3710,20 +3710,21 @@ elif platform == "Movie & TV Trends":
             media_type = st.selectbox(
                 "Media Type",
                 ["movie", "tv"],
-                format_func=lambda x: "Movies" if x == "movie" else "TV Shows",
+                format_func=lambda x: "Movies" if x == "movie" else "TV Shows", 
                 key="media_type_discover"
             )
         
         with col2:
             # Get genres for selected media type
             genres = get_tmdb_genres(tmdb_key, media_type)
-            genre_options = [("all", "All Genres")] + [(str(gid), gname) for gid, gname in genres.items()]
+            genre_options = [(str(gid), gname) for gid, gname in genres.items()]
             
-            selected_genre = st.selectbox(
-                "Genre",
+            selected_genres = st.multiselect(
+                "Genres (select multiple)",
                 options=[g[0] for g in genre_options],
                 format_func=lambda x: dict(genre_options).get(x, x),
-                key="genre_select"
+                key="genre_multiselect",
+                placeholder="Select genres or leave empty for all"
             )
         
         with col3:
@@ -3759,8 +3760,12 @@ elif platform == "Movie & TV Trends":
         
         if st.button("🎬 Get Trending", key="get_trending", type="primary"):
             with st.spinner(f"Fetching trending {media_type}s..."):
-                genre_id = None if selected_genre == "all" else selected_genre
+                # Join multiple genre IDs with comma for TMDB API
+                genre_ids = ','.join(selected_genres) if selected_genres else None
                 year = year_filter if use_year_filter else None
+                
+                results = search_tmdb(tmdb_key, media_type=media_type, genre_id=genre_ids, 
+                                    year=year, sort_by=sort_by)
 
 
                 
