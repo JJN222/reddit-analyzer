@@ -3752,7 +3752,7 @@ elif platform == "Movie & TV Trends":
                     "Year",
                     min_value=1900,
                     max_value=datetime.now().year + 1,
-                    value=datetime.now().year,
+                    value=datetime.now().year, 
                     key="year_filter"
                 )
             else:
@@ -4569,4 +4569,4 @@ st.markdown("""
     Transform trending conversations into compelling content
   </div>
 </div>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True) 
