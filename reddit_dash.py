@@ -2955,7 +2955,7 @@ if platform == "YouTube Intelligence":
         
         search_channel = st.text_input(
             "CHANNEL NAMES", 
-            placeholder="e.g., 'Bailey Sarian' or 'Ben Shapiro, Matt Walsh, Daily Wire'", 
+            placeholder="e.g., 'Bailey Sarian' or 'Noah Beck, Dude Perfect, Kareem Rahma'", 
             key="channel_input",
             help="Enter one channel or multiple channels separated by commas"
         )
