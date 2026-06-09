@@ -4,3 +4,4 @@ requests==2.31.0
 praw==7.7.1
 pandas==2.1.4
 feedparser==6.0.10
+python-dotenv==1.0.1

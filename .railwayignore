@@ -1,0 +1,5 @@
+# Don't upload the local virtualenv or secrets to Railway
+dashboard_env/
+.env
+__pycache__/
+*.pyc

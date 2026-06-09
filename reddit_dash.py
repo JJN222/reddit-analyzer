@@ -7,6 +7,10 @@ import openai
 import os
 import feedparser
 import praw
+from dotenv import load_dotenv
+
+# Load credentials from .env in the project root (no-op if the file is absent)
+load_dotenv()
 
 # At the very top, after imports
 if "password_correct" not in st.session_state:
@@ -567,7 +571,7 @@ def get_reddit_client():
   reddit = praw.Reddit(
     client_id=client_id,
     client_secret=client_secret,
-    user_agent='web:shorthand-reddit-analyzer:v1.0.0 (by /u/Ruhtorikal)',
+    user_agent=os.getenv('REDDIT_USER_AGENT', 'web:shorthand-reddit-analyzer:v1.0.0 (by /u/Ruhtorikal)'),
   )
   reddit.read_only = True
   return reddit
@@ -590,7 +594,7 @@ def _submission_to_dict(s):
     },
   }
 
-def get_reddit_posts(subreddit, category="hot", limit=5):
+def get_reddit_posts(subreddit, category="hot", limit=5, time_filter='year'):
   """Get posts from specified subreddit and category via the official Reddit API."""
   reddit = get_reddit_client()
   if reddit is None:
@@ -600,7 +604,7 @@ def get_reddit_posts(subreddit, category="hot", limit=5):
   try:
     sub = reddit.subreddit(subreddit)
     if category == 'top':
-      submissions = sub.top(time_filter='day', limit=limit)
+      submissions = sub.top(time_filter=time_filter, limit=limit)
     elif category == 'rising':
       submissions = sub.rising(limit=limit)
     elif category == 'new':
@@ -635,7 +639,7 @@ def get_top_comments(subreddit, post_id, limit=3):
     st.caption(f"⚠️ Couldn't load comments: {e}")
     return []
 
-def search_reddit_by_keywords(query, subreddits, limit=5):
+def search_reddit_by_keywords(query, subreddits, limit=5, time_filter='year'):
   """Search Reddit for posts containing specific keywords via the official Reddit API."""
   reddit = get_reddit_client()
   if reddit is None:
@@ -647,7 +651,7 @@ def search_reddit_by_keywords(query, subreddits, limit=5):
   # Search all of Reddit if specified
   if subreddits == ["all"]:
     try:
-      for s in reddit.subreddit('all').search(query, sort='top', time_filter='day', limit=limit * 2):
+      for s in reddit.subreddit('all').search(query, sort='top', time_filter=time_filter, limit=limit * 2):
         post = _submission_to_dict(s)
         post['data']['source_subreddit'] = post['data']['subreddit']
         all_results.append(post)
@@ -658,7 +662,7 @@ def search_reddit_by_keywords(query, subreddits, limit=5):
     # Search specific subreddits
     for subreddit in subreddits:
       try:
-        for s in reddit.subreddit(subreddit).search(query, sort='top', time_filter='day', limit=limit):
+        for s in reddit.subreddit(subreddit).search(query, sort='top', time_filter=time_filter, limit=limit):
           post = _submission_to_dict(s)
           post['data']['source_subreddit'] = subreddit
           all_results.append(post)
@@ -4095,9 +4099,23 @@ elif platform == "Reddit Analysis":
     
     # Post limit
     post_limit = st.slider(
-      "NUMBER OF POSTS", 
-      2, 15, 5, 
+      "NUMBER OF POSTS",
+      2, 15, 5,
       key="post_limit_slider"
+    )
+
+    # Time period for searches (maps to Reddit's time_filter)
+    time_period = st.selectbox(
+      "TIME PERIOD",
+      ["day", "month", "year", "all"],
+      index=2,  # default: Past year (past 365 days)
+      format_func=lambda x: {
+        "day": "Past 24 Hours",
+        "month": "Past Month",
+        "year": "Past Year",
+        "all": "Lifetime"
+      }.get(x, x),
+      key="time_period_select"
     )
   
   # Search logic explanation
@@ -4129,7 +4147,8 @@ elif platform == "Reddit Analysis":
           'keywords': search_keywords,
           'subreddits': selected_subreddits,
           'category': post_category,
-          'limit': post_limit
+          'limit': post_limit,
+          'time_filter': time_period
         }
   
   with col2:
@@ -4162,6 +4181,7 @@ elif platform == "Reddit Analysis":
     subreddits = params['subreddits']
     category = params['category']
     limit = params['limit']
+    time_filter = params.get('time_filter', 'year')
     
     # Determine search strategy
     if keywords and subreddits:
@@ -4171,7 +4191,7 @@ elif platform == "Reddit Analysis":
       all_posts = []
       for subreddit in subreddits:
         # Get posts from the subreddit
-        posts = get_reddit_posts(subreddit, category, limit)
+        posts = get_reddit_posts(subreddit, category, limit, time_filter)
         
         if posts:
           # Filter posts that contain the keywords
@@ -4212,7 +4232,7 @@ elif platform == "Reddit Analysis":
       st.info(f"🔍 Searching for '{keywords}' across all of Reddit...")
       
       try:
-        posts = search_reddit_by_keywords(keywords, ["all"], limit)[:limit]
+        posts = search_reddit_by_keywords(keywords, ["all"], limit, time_filter)[:limit]
 
         if posts:
           st.success(f"✅ Found {len(posts)} posts matching '{keywords}' across Reddit")
@@ -4241,7 +4261,7 @@ elif platform == "Reddit Analysis":
       
       for subreddit in subreddits:
         with st.spinner(f"Fetching {category} posts from r/{subreddit}..."):
-          posts = get_reddit_posts(subreddit, category, limit)
+          posts = get_reddit_posts(subreddit, category, limit, time_filter)
           
           if posts:
             all_posts_found = True
