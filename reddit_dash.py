@@ -6,6 +6,7 @@ import time
 import openai
 import os
 import feedparser
+import praw
 
 # At the very top, after imports
 if "password_correct" not in st.session_state:
@@ -552,123 +553,119 @@ def save_post(post_data, analysis, creator_name, subreddit):
     return True
   return False
 
-def get_reddit_posts(subreddit, category="hot", limit=5):
-  """Get posts from specified subreddit and category"""
-  urls_to_try = [
-    f"https://www.reddit.com/r/{subreddit}/{category}.json",  # Removed ?limit from URL
-    f"https://old.reddit.com/r/{subreddit}/{category}.json",
-    f"https://np.reddit.com/r/{subreddit}/{category}.json",
-  ]
-  
-  headers_variants = [
-    {
-      'User-Agent': 'web:shorthand-reddit-analyzer:v1.0.0 (by /u/Ruhtorikal)',
-      'Accept': 'application/json',
+@st.cache_resource
+def get_reddit_client():
+  """Build a read-only PRAW client from environment credentials.
+
+  Returns None if credentials are missing so callers can surface a clear error.
+  Uses Reddit's app-only OAuth (read-only), so no username/password is required.
+  """
+  client_id = os.getenv('REDDIT_CLIENT_ID', '')
+  client_secret = os.getenv('REDDIT_CLIENT_SECRET', '')
+  if not client_id or not client_secret:
+    return None
+  reddit = praw.Reddit(
+    client_id=client_id,
+    client_secret=client_secret,
+    user_agent='web:shorthand-reddit-analyzer:v1.0.0 (by /u/Ruhtorikal)',
+  )
+  reddit.read_only = True
+  return reddit
+
+def _submission_to_dict(s):
+  """Map a PRAW submission to the {'data': {...}} shape the dashboard expects."""
+  return {
+    'kind': 't3',
+    'data': {
+      'id': s.id,
+      'title': s.title,
+      'score': s.score,
+      'num_comments': s.num_comments,
+      'selftext': s.selftext or '',
+      'permalink': s.permalink,
+      'created_utc': s.created_utc,
+      'subreddit': str(s.subreddit),
+      'author': str(s.author) if s.author else '[deleted]',
+      'url': s.url,
     },
-    {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json',
-    }
-  ]
-  
-  for url in urls_to_try:
-    for headers in headers_variants:
-      try:
-        time.sleep(2)
-        params = {'limit': limit, 'raw_json': 1}
-        response = requests.get(url, headers=headers, params=params, timeout=15)
-        
-        if response.status_code == 200:
-          data = response.json()
-          if 'data' in data and 'children' in data['data'] and data['data']['children']:
-            return data['data']['children'][:limit]  # Force slice to limit
-        elif response.status_code == 429:
-          time.sleep(5)
-          continue
-      except:
-        continue
-  
-  return []
+  }
+
+def get_reddit_posts(subreddit, category="hot", limit=5):
+  """Get posts from specified subreddit and category via the official Reddit API."""
+  reddit = get_reddit_client()
+  if reddit is None:
+    st.error("Reddit API credentials are not configured. Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET.")
+    return []
+
+  try:
+    sub = reddit.subreddit(subreddit)
+    if category == 'top':
+      submissions = sub.top(time_filter='day', limit=limit)
+    elif category == 'rising':
+      submissions = sub.rising(limit=limit)
+    elif category == 'new':
+      submissions = sub.new(limit=limit)
+    else:
+      submissions = sub.hot(limit=limit)
+    return [_submission_to_dict(s) for s in submissions]
+  except Exception as e:
+    st.error(f"Failed to fetch r/{subreddit} ({category}): {e}")
+    return []
 
 def get_top_comments(subreddit, post_id, limit=3):
-  """Get top comments for a specific post"""
-  url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json"
-  
+  """Get top comments for a specific post via the official Reddit API."""
+  reddit = get_reddit_client()
+  if reddit is None:
+    st.caption("⚠️ Comments unavailable: Reddit API credentials are not configured.")
+    return []
+
   try:
-    time.sleep(2)
-    response = requests.get(url, headers=HEADERS, timeout=15)
-    
-    if response.status_code == 200:
-      data = response.json()
-      if len(data) > 1 and 'data' in data[1] and 'children' in data[1]['data']:
-        comments = []
-        for comment in data[1]['data']['children'][:limit]:
-          if comment['kind'] == 't1' and 'body' in comment['data']:
-            comments.append({
-              'body': comment['data']['body'],
-              'score': comment['data']['score'],
-              'author': comment['data'].get('author', '[deleted]')
-            })
-        return comments
-  except:
-    pass
-  
-  return []
+    submission = reddit.submission(id=post_id)
+    submission.comment_sort = 'top'
+    submission.comments.replace_more(limit=0)
+    comments = []
+    for comment in submission.comments[:limit]:
+      comments.append({
+        'body': comment.body,
+        'score': comment.score,
+        'author': str(comment.author) if comment.author else '[deleted]'
+      })
+    return comments
+  except Exception as e:
+    st.caption(f"⚠️ Couldn't load comments: {e}")
+    return []
 
 def search_reddit_by_keywords(query, subreddits, limit=5):
-  """Search Reddit for posts containing specific keywords"""
+  """Search Reddit for posts containing specific keywords via the official Reddit API."""
+  reddit = get_reddit_client()
+  if reddit is None:
+    st.error("Reddit API credentials are not configured. Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET.")
+    return []
+
   all_results = []
-  
+
   # Search all of Reddit if specified
   if subreddits == ["all"]:
     try:
-      search_url = "https://www.reddit.com/search.json"
-      params = {
-        'q': query,
-        'sort': 'top',
-        't': 'day',
-        'limit': limit * 2,
-        'type': 'link'
-      }
-      time.sleep(2)
-      response = requests.get(search_url, headers=HEADERS, params=params, timeout=15)
-      
-      if response.status_code == 200:
-        data = response.json()
-        if 'data' in data and 'children' in data['data']:
-          posts = data['data']['children']
-          for post in posts:
-            post['data']['source_subreddit'] = post['data']['subreddit']
-          all_results.extend(posts)
-    except:
-      # Fallback to popular subreddits if all Reddit search fails
-      subreddits = ["Conservative", "Politics", "News", "WorldNews", "AskReddit", "PublicFreakout"]
-  
-  # Search specific subreddits
-  if subreddits != ["all"]:
+      for s in reddit.subreddit('all').search(query, sort='top', time_filter='day', limit=limit * 2):
+        post = _submission_to_dict(s)
+        post['data']['source_subreddit'] = post['data']['subreddit']
+        all_results.append(post)
+    except Exception as e:
+      st.error(f"Reddit search failed for '{query}': {e}")
+      return []
+  else:
+    # Search specific subreddits
     for subreddit in subreddits:
       try:
-        search_url = f"https://www.reddit.com/r/{subreddit}/search.json"
-        params = {
-          'q': query,
-          'restrict_sr': 'true',
-          'sort': 'top',
-          't': 'day',
-          'limit': limit
-        }
-        time.sleep(2)
-        response = requests.get(search_url, headers=HEADERS, params=params, timeout=15)
-        
-        if response.status_code == 200:
-          data = response.json()
-          if 'data' in data and 'children' in data['data']:
-            posts = data['data']['children']
-            for post in posts:
-              post['data']['source_subreddit'] = subreddit
-            all_results.extend(posts)
-      except:
+        for s in reddit.subreddit(subreddit).search(query, sort='top', time_filter='day', limit=limit):
+          post = _submission_to_dict(s)
+          post['data']['source_subreddit'] = subreddit
+          all_results.append(post)
+      except Exception as e:
+        st.error(f"Reddit search failed in r/{subreddit}: {e}")
         continue
-  
+
   # Sort by score and return top results
   all_results.sort(key=lambda x: x['data']['score'], reverse=True)
   return all_results[:limit * 3]
@@ -4215,46 +4212,24 @@ elif platform == "Reddit Analysis":
       st.info(f"🔍 Searching for '{keywords}' across all of Reddit...")
       
       try:
-        search_url = "https://www.reddit.com/search.json"
-        params_dict = {
-          'q': keywords,
-          'sort': 'top' if category == 'top' else 'hot',
-          't': 'day',
-          'limit': limit * 2,
-          'type': 'link',
-          'raw_json': 1
-        }
-        
-        time.sleep(2)
-        response = requests.get(search_url, headers=HEADERS, params=params_dict, timeout=15)
-        
-        if response.status_code == 200:
-          data = response.json()
-          if 'data' in data and 'children' in data['data'] and data['data']['children']:
-            posts = data['data']['children'][:limit]
-            
-            # Add source subreddit info for display
-            for post in posts:
-              post['data']['source_subreddit'] = post['data']['subreddit']
-            
-            st.success(f"✅ Found {len(posts)} posts matching '{keywords}' across Reddit")
-            
-            # Group by subreddit for better organization
-            grouped_posts = {}
-            for post in posts:
-              sub = post['data']['source_subreddit']
-              if sub not in grouped_posts:
-                grouped_posts[sub] = []
-              grouped_posts[sub].append(post)
-            
-            for sub, sub_posts in grouped_posts.items():
-              st.subheader(f"r/{sub} ({len(sub_posts)} posts)")
-              display_posts(sub_posts, sub, api_key, creator_name)
-              
-          else:
-            st.warning(f"No posts found for '{keywords}'. Try different keywords.")
+        posts = search_reddit_by_keywords(keywords, ["all"], limit)[:limit]
+
+        if posts:
+          st.success(f"✅ Found {len(posts)} posts matching '{keywords}' across Reddit")
+
+          # Group by subreddit for better organization
+          grouped_posts = {}
+          for post in posts:
+            sub = post['data']['source_subreddit']
+            if sub not in grouped_posts:
+              grouped_posts[sub] = []
+            grouped_posts[sub].append(post)
+
+          for sub, sub_posts in grouped_posts.items():
+            st.subheader(f"r/{sub} ({len(sub_posts)} posts)")
+            display_posts(sub_posts, sub, api_key, creator_name)
         else:
-          st.error("Search failed. Try selecting specific subreddits instead.")
+          st.warning(f"No posts found for '{keywords}'. Try different keywords.")
       except Exception as e:
         st.error(f"Search error: {str(e)}. Try selecting specific subreddits instead.")
     
