@@ -566,7 +566,9 @@ def get_reddit_client():
   """
   client_id = os.getenv('REDDIT_CLIENT_ID', '')
   client_secret = os.getenv('REDDIT_CLIENT_SECRET', '')
+  print(f"[DIAG] get_reddit_client: id_len={len(client_id)} secret_len={len(client_secret)}", flush=True)
   if not client_id or not client_secret:
+    print("[DIAG] get_reddit_client: MISSING creds -> returning None", flush=True)
     return None
   reddit = praw.Reddit(
     client_id=client_id,
@@ -651,11 +653,15 @@ def search_reddit_by_keywords(query, subreddits, limit=5, time_filter='year'):
   # Search all of Reddit if specified
   if subreddits == ["all"]:
     try:
+      print(f"[DIAG] search_all start query={query!r} time_filter={time_filter} ua={reddit.config.user_agent!r}", flush=True)
       for s in reddit.subreddit('all').search(query, sort='top', time_filter=time_filter, limit=limit * 2):
         post = _submission_to_dict(s)
         post['data']['source_subreddit'] = post['data']['subreddit']
         all_results.append(post)
+      print(f"[DIAG] search_all ok query={query!r} -> {len(all_results)} results", flush=True)
     except Exception as e:
+      import traceback; traceback.print_exc()
+      print(f"[DIAG] search_all FAILED query={query!r}: {type(e).__name__}: {e}", flush=True)
       st.error(f"Reddit search failed for '{query}': {e}")
       return []
   else:
